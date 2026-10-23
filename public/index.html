@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#ffd21f">
+<title>피카츄 집찾아가기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+  :root {
+    --bg: #fff8dc;
+    --panel: #ffffff;
+    --ink: #3b2a12;
+    --accent: #ffd21f;
+    --accent-dark: #e0a800;
+    --red: #e8453c;
+    --grass: #9bd770;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    display: flex; justify-content: center;
+    overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  #app { width: 100%; max-width: 640px; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  header { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: -0.5px; }
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .stats span { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
+  #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--grass); touch-action: none; }
+  canvas { display: block; }
+  #overlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; text-align: center;
+    background: rgba(255, 248, 220, 0.92); padding: 16px;
+  }
+  #overlay.show { display: flex; }
+  #overlay .card { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 360px; }
+  #overlay h2 { margin: 0; font-size: 26px; }
+  #overlay p { margin: 0; line-height: 1.5; font-size: 15px; }
+  .stars { font-size: 34px; letter-spacing: 4px; color: var(--accent-dark); }
+  button {
+    font: inherit; font-weight: 700; color: var(--ink);
+    background: var(--accent); border: 3px solid var(--ink); border-radius: 12px;
+    padding: 10px 18px; cursor: pointer; box-shadow: 0 4px 0 var(--ink);
+    touch-action: manipulation;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  button:disabled { opacity: 0.5; }
+  .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 4px; touch-action: none; }
+  .dpad button { padding: 0; font-size: 24px; border-radius: 14px; }
+  .dpad .up { grid-column: 2; grid-row: 1; }
+  .dpad .left { grid-column: 1; grid-row: 2; }
+  .dpad .right { grid-column: 3; grid-row: 2; }
+  .dpad .down { grid-column: 2; grid-row: 3; }
+  .side { display: flex; flex-direction: column; gap: 10px; flex: 1; max-width: 200px; }
+  .side button { background: var(--panel); }
+  .tip { text-align: center; font-size: 13px; opacity: 0.75; margin: 0; }
+  @media (min-width: 700px) and (hover: hover) { .dpad { display: none; } .controls { justify-content: center; } .side { flex-direction: row; max-width: none; flex: 0; } .side button { white-space: nowrap; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>⚡ 피카츄 집찾아가기</h1>
+    <div class="stats">
+      <span>레벨 <b id="lv">1</b></span>
+      <span>⏱ <b id="time">0.0</b>초</span>
+      <span>⚡ <b id="bolts">0/0</b></span>
+    </div>
+  </header>
+
+  <div id="wrap">
+    <canvas id="board"></canvas>
+    <div id="overlay" class="show">
+      <div class="card" id="card"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="dpad" id="dpad">
+      <button class="up" data-dir="up" aria-label="위">▲</button>
+      <button class="left" data-dir="left" aria-label="왼쪽">◀</button>
+      <button class="right" data-dir="right" aria-label="오른쪽">▶</button>
+      <button class="down" data-dir="down" aria-label="아래">▼</button>
+    </div>
+    <div class="side">
+      <button id="hintBtn">💡 힌트 (3)</button>
+      <button id="newBtn">🔄 새 미로</button>
+    </div>
+  </div>
+  <p class="tip">방향키 · WASD · 화면 스와이프 · 버튼으로 움직여요</p>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const cv = $('board');
+  const ctx = cv.getContext('2d');
+  const wrap = $('wrap');
+
+  // dx, dy, wall index (0 top, 1 right, 2 bottom, 3 left), opposite wall
+  const DIRS = {
+    up: [0, -1, 0, 2],
+    right: [1, 0, 1, 3],
+    down: [0, 1, 2, 0],
+    left: [-1, 0, 3, 1],
+  };
+  const KEYS = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right',
+    W: 'up', S: 'down', A: 'left', D: 'right',
+  };
+
+  const rand = (n) => Math.floor(Math.random() * n);
+
+  function store(key, val) {
+    try {
+      if (val === undefined) return localStorage.getItem(key);
+      localStorage.setItem(key, val);
+    } catch (e) { return null; }
+  }
+
+  // ---------- maze ----------
+  function makeMaze(c, r) {
+    const cells = Array.from({ length: r }, () => Array.from({ length: c }, () => [1, 1, 1, 1]));
+    const seen = Array.from({ length: r }, () => Array(c).fill(false));
+    const stack = [[0, 0]];
+    seen[0][0] = true;
+    const dirs = Object.values(DIRS);
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1];
+      const opts = dirs.filter(([dx, dy]) => {
+        const nx = x + dx, ny = y + dy;
+        return nx >= 0 && ny >= 0 && nx < c && ny < r && !seen[ny][nx];
+      });
+      if (!opts.length) { stack.pop(); continue; }
+      const [dx, dy, w, o] = opts[rand(opts.length)];
+      const nx = x + dx, ny = y + dy;
+      cells[y][x][w] = 0;
+      cells[ny][nx][o] = 0;
+      seen[ny][nx] = true;
+      stack.push([nx, ny]);
+    }
+    // knock out a few extra walls so there are loops (less frustrating)
+    const extra = Math.floor(c * r * 0.05);
+    for (let i = 0; i < extra; i++) {
+      if (Math.random() < 0.5) {
+        const x = rand(c - 1), y = rand(r);
+        cells[y][x][1] = 0; cells[y][x + 1][3] = 0;
+      } else {
+        const x = rand(c), y = rand(r - 1);
+        cells[y][x][2] = 0; cells[y + 1][x][0] = 0;
+      }
+    }
+    return cells;
+  }
+
+  function findPath(from, to) {
+    const key = (x, y) => y * G.cols + x;
+    const prev = new Map([[key(from.x, from.y), null]]);
+    const q = [[from.x, from.y]];
+    while (q.length) {
+      const [x, y] = q.shift();
+      if (x === to.x && y === to.y) break;
+      for (const [dx, dy, w] of Object.values(DIRS)) {
+        if (G.maze[y][x][w]) continue;
+        const nx = x + dx, ny = y + dy, k = key(nx, ny);
+        if (prev.has(k)) continue;
+        prev.set(k, [x, y]);
+        q.push([nx, ny]);
+      }
+    }
+    const path = [];
+    let cur = [to.x, to.y];
+    while (cur) { path.unshift(cur); cur = prev.get(key(cur[0], cur[1])); }
+    return path;
+  }
+
+  // ---------- state ----------
+  const G = {
+    level: 1,
+    best: parseInt(store('pika-best') || '0', 10) || 0,
+    state: 'menu', // menu | play | win
+    cols: 7, rows: 7, maze: null,
+    player: null, home: null,
+    bolts: new Set(), total: 0, got: 0,
+    hints: 3, hintUntil: 0,
+    t0: 0, elapsed: 0, steps: 0,
+    cs: 40, size: 300,
+    particles: [], bump: 0, queued: null,
+  };
+
+  function newLevel() {
+    const n = Math.min(5 + G.level * 2, 25);
+    G.cols = n; G.rows = n;
+    G.maze = makeMaze(n, n);
+    G.player = { x: 0, y: 0, rx: 0, ry: 0, face: 1 };
+    G.home = { x: n - 1, y: n - 1 };
+    G.bolts = new Set();
+    G.total = Math.min(2 + G.level, 12);
+    let guard = 0;
+    while (G.bolts.size < G.total && guard++ < 1000) {
+      const x = rand(n), y = rand(n);
+      if ((x === 0 && y === 0) || (x === G.home.x && y === G.home.y)) continue;
+      G.bolts.add(y * n + x);
+    }
+    G.total = G.bolts.size;
+    G.got = 0; G.hints = 3; G.hintUntil = 0;
+    G.t0 = 0; G.elapsed = 0; G.steps = 0;
+    G.particles = []; G.queued = null;
+    G.state = 'play';
+    hideOverlay();
+    resize();
+    updateHud();
+  }
+
+  // ---------- movement ----------
+  function tryMove(dir) {
+    if (G.state !== 'play') return;
+    const p = G.player;
+    // still mid-animation: buffer one move
+    if (Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) > 0.45) { G.queued = dir; return; }
+    const [dx, dy, w] = DIRS[dir];
+    if (dx) p.face = dx;
+    if (G.maze[p.y][p.x][w]) { G.bump = 1; return; }
+    p.x += dx; p.y += dy;
+    G.steps++;
+    if (!G.t0) G.t0 = performance.now();
+    const k = p.y * G.cols + p.x;
+    if (G.bolts.has(k)) {
+      G.bolts.delete(k);
+      G.got++;
+      burst(p.x, p.y, '#ffd21f', 14);
+      buzz(15);
+    }
+    if (p.x === G.home.x && p.y === G.home.y) win();
+    updateHud();
+  }
+
+  function win() {
+    G.state = 'win';
+    G.elapsed = (performance.now() - G.t0) / 1000;
+    for (let i = 0; i < 4; i++) burst(G.home.x, G.home.y, ['#ffd21f', '#e8453c', '#6ec6ff', '#ffffff'][i], 18);
+    buzz([30, 40, 30]);
+    if (G.level > G.best) { G.best = G.level; store('pika-best', String(G.best)); }
+    const stars = 1 + (G.got >= Math.ceil(G.total / 2) ? 1 : 0) + (G.got === G.total ? 1 : 0);
+    setTimeout(() => showOverlay(`
+      <h2>🏠 집에 도착했어요!</h2>
+      <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+      <p>레벨 ${G.level} 클리어<br>
+      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · ⚡ ${G.got}/${G.total}</p>
+      <button id="nextBtn">다음 레벨 ▶</button>
+    `, () => $('nextBtn').onclick = () => { G.level++; newLevel(); }), 700);
+  }
+
+  function buzz(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+
+  function burst(cx, cy, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 1.5 + Math.random() * 3;
+      G.particles.push({ x: cx + 0.5, y: cy + 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, color });
+    }
+  }
+
+  // ---------- input ----------
+  addEventListener('keydown', (e) => {
+    const dir = KEYS[e.key];
+    if (dir) { e.preventDefault(); tryMove(dir); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && G.state !== 'play') {
+      e.preventDefault();
+      const b = document.querySelector('#overlay button');
+      if (b) b.click();
+    }
+  });
+
+  let touch = null;
+  wrap.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touch = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  wrap.addEventListener('touchmove', (e) => {
+    if (!touch || G.state !== 'play') return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    const step = Math.max(24, G.cs * 0.8);
+    // dragging keeps moving: one cell per `step` pixels
+    if (Math.max(Math.abs(dx), Math.abs(dy)) >= step) {
+      tryMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+      touch = { x: t.clientX, y: t.clientY };
+    }
+  }, { passive: false });
+  wrap.addEventListener('touchend', () => { touch = null; });
+
+  // D-pad with hold-to-repeat
+  let holdTimer = null;
+  const stopHold = () => { clearInterval(holdTimer); holdTimer = null; };
+  document.querySelectorAll('#dpad button').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      stopHold();
+      const dir = b.dataset.dir;
+      tryMove(dir);
+      holdTimer = setInterval(() => tryMove(dir), 150);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stopHold));
+  });
+
+  $('hintBtn').onclick = () => {
+    if (G.state !== 'play' || G.hints <= 0) return;
+    G.hints--;
+    G.hintUntil = performance.now() + 2500;
+    updateHud();
+  };
+  $('newBtn').onclick = () => { if (G.state !== 'menu') newLevel(); };
+
+  // ---------- overlay / hud ----------
+  function showOverlay(html, bind) {
+    $('card').innerHTML = html;
+    $('overlay').classList.add('show');
+    if (bind) bind();
+  }
+  function hideOverlay() { $('overlay').classList.remove('show'); }
+
+  function updateHud() {
+    $('lv').textContent = G.level;
+    $('bolts').textContent = `${G.got}/${G.total}`;
+    $('hintBtn').textContent = `💡 힌트 (${G.hints})`;
+    $('hintBtn').disabled = G.hints <= 0 || G.state !== 'play';
+  }
+
+  function menu() {
+    G.state = 'menu';
+    if (!G.maze) { G.maze = makeMaze(7, 7); G.player = { x: 0, y: 0, rx: 0, ry: 0, face: 1 }; G.home = { x: 6, y: 6 }; }
+    showOverlay(`
+      <h2>⚡ 피카츄 집찾아가기</h2>
+      <p>길을 잃은 피카츄를 미로 끝의 <b>집 🏠</b>까지 데려다 주세요!<br>
+      가는 길에 <b>번개 ⚡</b>를 모으면 별을 더 받아요.</p>
+      ${G.best ? `<p>최고 기록: 레벨 ${G.best}</p>` : ''}
+      <button id="startBtn">시작하기</button>
+    `, () => $('startBtn').onclick = () => { G.level = 1; newLevel(); });
+    resize();
+    updateHud();
+  }
+
+  // ---------- layout ----------
+  function resize() {
+    const maxW = Math.min(document.getElementById('app').clientWidth - 32, 600);
+    const reserved = matchMedia('(min-width: 700px) and (hover: hover)').matches ? 190 : 330;
+    const maxH = window.innerHeight - reserved;
+    let size = Math.max(220, Math.min(maxW, maxH));
+    G.cs = Math.floor(size / G.cols);
+    size = G.cs * G.cols;
+    G.size = size;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = size * dpr; cv.height = size * dpr;
+    cv.style.width = size + 'px'; cv.style.height = size + 'px';
+    wrap.style.width = size + 6 + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize);
+
+  // ---------- drawing ----------
+  function drawGround() {
+    const { cs, cols, rows } = G;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      ctx.fillStyle = (x + y) % 2 ? '#a5dc7a' : '#9bd770';
+      ctx.fillRect(x * cs, y * cs, cs, cs);
+    }
+  }
+
+  function drawWalls() {
+    const { cs, cols, rows, maze } = G;
+    ctx.strokeStyle = '#2f6b2a';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(3, cs * 0.16);
+    ctx.beginPath();
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const c = maze[y][x], px = x * cs, py = y * cs;
+      if (c[0]) { ctx.moveTo(px, py); ctx.lineTo(px + cs, py); }
+      if (c[3]) { ctx.moveTo(px, py); ctx.lineTo(px, py + cs); }
+      if (y === rows - 1 && c[2]) { ctx.moveTo(px, py + cs); ctx.lineTo(px + cs, py + cs); }
+      if (x === cols - 1 && c[1]) { ctx.moveTo(px + cs, py); ctx.lineTo(px + cs, py + cs); }
+    }
+    ctx.stroke();
+    // lighter highlight on hedges
+    ctx.strokeStyle = '#4c9a3f';
+    ctx.lineWidth = Math.max(1, cs * 0.06);
+    ctx.stroke();
+  }
+
+  function drawHint(now) {
+    if (now > G.hintUntil || G.state !== 'play') return;
+    const path = findPath(G.player, G.home);
+    const { cs } = G;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (G.hintUntil - now) / 500);
+    ctx.strokeStyle = '#fff36b';
+    ctx.lineWidth = Math.max(3, cs * 0.18);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.setLineDash([cs * 0.25, cs * 0.3]);
+    ctx.lineDashOffset = -now / 30;
+    ctx.beginPath();
+    path.forEach(([x, y], i) => {
+      const px = (x + 0.5) * cs, py = (y + 0.5) * cs;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBolt(cx, cy, s) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(s, s);
+    ctx.beginPath();
+    ctx.moveTo(0.1, -0.5); ctx.lineTo(-0.3, 0.08); ctx.lineTo(-0.02, 0.08);
+    ctx.lineTo(-0.12, 0.5); ctx.lineTo(0.3, -0.1); ctx.lineTo(0.02, -0.1); ctx.closePath();
+    ctx.fillStyle = '#ffd21f'; ctx.fill();
+    ctx.lineWidth = 0.07; ctx.strokeStyle = '#8a5a00'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBolts(now) {
+    const { cs, cols } = G;
+    for (const k of G.bolts) {
+      const x = k % cols, y = Math.floor(k / cols);
+      const bob = Math.sin(now / 300 + k) * cs * 0.06;
+      drawBolt((x + 0.5) * cs, (y + 0.5) * cs + bob, cs * 0.7);
+    }
+  }
+
+  function drawHome(now) {
+    const { cs } = G;
+    const cx = (G.home.x + 0.5) * cs, cy = (G.home.y + 0.5) * cs;
+    const s = cs * 0.8;
+    ctx.save();
+    ctx.translate(cx, cy + s * 0.05);
+    // glow
+    const g = 0.5 + 0.5 * Math.sin(now / 400);
+    ctx.fillStyle = `rgba(255, 240, 120, ${0.25 + 0.2 * g})`;
+    ctx.beginPath(); ctx.arc(0, 0, s * 0.62, 0, Math.PI * 2); ctx.fill();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.5, s * 0.05);
+    ctx.strokeStyle = '#3b2a12';
+    // walls
+    ctx.fillStyle = '#fff1cf';
+    ctx.fillRect(-s * 0.32, -s * 0.05, s * 0.64, s * 0.42);
+    ctx.strokeRect(-s * 0.32, -s * 0.05, s * 0.64, s * 0.42);
+    // roof
+    ctx.fillStyle = '#e8453c';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.44, -s * 0.03); ctx.lineTo(0, -s * 0.42); ctx.lineTo(s * 0.44, -s * 0.03); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // door
+    ctx.fillStyle = '#8a5a2b';
+    ctx.fillRect(-s * 0.08, s * 0.14, s * 0.16, s * 0.23);
+    ctx.strokeRect(-s * 0.08, s * 0.14, s * 0.16, s * 0.23);
+    // window
+    ctx.fillStyle = '#9fdcff';
+    ctx.fillRect(s * 0.13, s * 0.03, s * 0.12, s * 0.1);
+    ctx.strokeRect(s * 0.13, s * 0.03, s * 0.12, s * 0.1);
+    ctx.restore();
+  }
+
+  function drawPika(cx, cy, s, face, now) {
+    const moving = Math.abs(G.player.rx - G.player.x) + Math.abs(G.player.ry - G.player.y) > 0.02;
+    const hop = G.state === 'win'
+      ? Math.abs(Math.sin(now / 150)) * s * 0.25
+      : (moving ? Math.abs(Math.sin(now / 60)) * s * 0.08 : Math.sin(now / 500) * s * 0.02);
+    const shake = G.bump > 0 ? Math.sin(G.bump * 40) * s * 0.06 * G.bump : 0;
+    const Y = '#ffd21f', K = '#2a1d0c';
+    ctx.save();
+    ctx.translate(cx + shake, cy - hop);
+    ctx.scale(face, 1);
+    ctx.lineWidth = Math.max(1.2, s * 0.035);
+    ctx.strokeStyle = K;
+    ctx.lineJoin = 'round';
+
+    // shadow
+    ctx.save();
+    ctx.translate(0, hop);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.ellipse(0, s * 0.42, s * 0.28, s * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // tail (zigzag behind)
+    ctx.fillStyle = Y;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.22, s * 0.25);
+    ctx.lineTo(-s * 0.36, s * 0.12);
+    ctx.lineTo(-s * 0.3, s * 0.06);
+    ctx.lineTo(-s * 0.48, -s * 0.1);
+    ctx.lineTo(-s * 0.4, -s * 0.16);
+    ctx.lineTo(-s * 0.56, -s * 0.38);
+    ctx.lineTo(-s * 0.3, -s * 0.2);
+    ctx.lineTo(-s * 0.36, -s * 0.14);
+    ctx.lineTo(-s * 0.2, 0.0);
+    ctx.lineTo(-s * 0.24, s * 0.05);
+    ctx.lineTo(-s * 0.12, s * 0.2);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // ears
+    const ear = (x, rot) => {
+      ctx.save();
+      ctx.translate(x, -s * 0.32);
+      ctx.rotate(rot);
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.12, s * 0.075, s * 0.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = Y; ctx.fill();
+      ctx.save(); ctx.clip();
+      ctx.fillStyle = K; ctx.fillRect(-s * 0.1, -s * 0.36, s * 0.2, s * 0.13);
+      ctx.restore();
+      ctx.stroke();
+      ctx.restore();
+    };
+    ear(-s * 0.13, -0.45);
+    ear(s * 0.13, 0.45);
+
+    // body
+    ctx.fillStyle = Y;
+    ctx.beginPath(); ctx.ellipse(0, s * 0.2, s * 0.25, s * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // feet
+    ctx.beginPath(); ctx.ellipse(-s * 0.12, s * 0.39, s * 0.08, s * 0.045, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.39, s * 0.08, s * 0.045, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // head
+    ctx.beginPath(); ctx.ellipse(0, -s * 0.12, s * 0.29, s * 0.24, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // cover seam between head and body
+    ctx.beginPath(); ctx.ellipse(0, s * 0.08, s * 0.2, s * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+    // arms
+    ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.17, s * 0.06, s * 0.035, -0.5, 0, Math.PI * 2); ctx.stroke();
+
+    // eyes
+    const ex = s * 0.11, ey = -s * 0.14, er = s * 0.055;
+    ctx.fillStyle = K;
+    [-ex + s * 0.03, ex + s * 0.03].forEach((x) => {
+      ctx.beginPath(); ctx.arc(x, ey, er, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#fff';
+    [-ex + s * 0.045, ex + s * 0.045].forEach((x) => {
+      ctx.beginPath(); ctx.arc(x, ey - er * 0.35, er * 0.38, 0, Math.PI * 2); ctx.fill();
+    });
+    // nose
+    ctx.fillStyle = K;
+    ctx.beginPath(); ctx.arc(s * 0.03, -s * 0.07, s * 0.012, 0, Math.PI * 2); ctx.fill();
+    // cheeks
+    ctx.fillStyle = '#e8453c';
+    ctx.beginPath(); ctx.arc(-s * 0.19, -s * 0.03, s * 0.055, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s * 0.23, -s * 0.03, s * 0.055, 0, Math.PI * 2); ctx.fill();
+    // mouth
+    ctx.lineWidth = Math.max(1, s * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.02, -s * 0.03);
+    ctx.quadraticCurveTo(s * 0.005, -s * 0.0, s * 0.03, -s * 0.04);
+    ctx.quadraticCurveTo(s * 0.055, -s * 0.0, s * 0.08, -s * 0.03);
+    ctx.stroke();
+
+    // sparks when winning
+    if (G.state === 'win' && Math.floor(now / 120) % 2) {
+      ctx.strokeStyle = '#fff36b';
+      ctx.lineWidth = Math.max(1.5, s * 0.04);
+      for (const sx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sx * s * 0.3, -s * 0.05);
+        ctx.lineTo(sx * s * 0.42, -s * 0.12);
+        ctx.lineTo(sx * s * 0.38, -s * 0.0);
+        ctx.lineTo(sx * s * 0.5, -s * 0.06);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawParticles(dt) {
+    const { cs } = G;
+    G.particles = G.particles.filter((p) => p.life > 0);
+    for (const p of G.particles) {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.94; p.vy *= 0.94;
+      p.life -= dt * 1.4;
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x * cs, p.y * cs, Math.max(1.5, cs * 0.07 * p.life), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const p = G.player;
+    if (p) {
+      const k = Math.min(1, dt * 16);
+      p.rx += (p.x - p.rx) * k;
+      p.ry += (p.y - p.ry) * k;
+      if (Math.abs(p.rx - p.x) < 0.01) p.rx = p.x;
+      if (Math.abs(p.ry - p.y) < 0.01) p.ry = p.y;
+      if (G.queued && Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) <= 0.45) {
+        const q = G.queued; G.queued = null; tryMove(q);
+      }
+    }
+    G.bump = Math.max(0, G.bump - dt * 4);
+
+    if (G.state === 'play' && G.t0) {
+      $('time').textContent = ((now - G.t0) / 1000).toFixed(1);
+    } else if (G.state === 'win') {
+      $('time').textContent = G.elapsed.toFixed(1);
+    } else if (!G.t0) {
+      $('time').textContent = '0.0';
+    }
+
+    if (G.maze) {
+      ctx.clearRect(0, 0, G.size, G.size);
+      drawGround();
+      drawHint(now);
+      drawWalls();
+      drawBolts(now);
+      drawHome(now);
+      drawPika((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.86, p.face, now);
+      drawParticles(dt * 4);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  menu();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
