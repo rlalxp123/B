@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#3b2f86">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>코스모그 키우기</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌌</text></svg>">
+<title>포켓몬 알 키우기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥚</text></svg>">
 <style>
   :root {
     --bg1: #241c5c;
@@ -79,6 +79,9 @@
   #screen.night { background: linear-gradient(#0d0f36, #2b2266); }
   #screen.sun { background: radial-gradient(circle at 80% 15%, #fff6c8 0 12%, transparent 13%), linear-gradient(#ffd98a, #ffc8de); }
   #screen.moon { background: radial-gradient(circle at 80% 15%, #f4f0ff 0 10%, transparent 11%), linear-gradient(#1c1752, #5c4bc2); }
+  #screen.fire { background: radial-gradient(circle at 50% 120%, #ff7a3c 0 30%, transparent 60%), linear-gradient(#ffd6a0, #ff9f7a); }
+  #screen.bluefire { background: radial-gradient(circle at 50% 120%, #3aa8ff 0 25%, transparent 60%), linear-gradient(#141a3c, #2a4f9a); }
+  #screen.bluefire .twinkle { opacity: 1; }
   #sky { position: absolute; inset: 0; pointer-events: none; }
   .twinkle { position: absolute; color: #fff; font-size: 10px; opacity: 0; animation: tw 3s infinite; }
   #screen.night .twinkle, #screen.moon .twinkle { opacity: 1; }
@@ -169,9 +172,10 @@
   #modal .card { background: var(--panel); border: 4px solid var(--ink); border-radius: 20px; padding: 18px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
   #modal h2 { margin: 0 0 10px; font-size: 20px; text-align: center; }
   #modal p { margin: 6px 0; line-height: 1.5; font-size: 14px; }
-  .dex { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
-  .dex div { background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 4px; text-align: center; font-size: 12px; font-weight: 700; }
-  .dex svg { width: 100%; height: 70px; }
+  .dex { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; }
+  .dexTitle { font-size: 13px; font-weight: 800; margin-top: 6px; }
+  .dex div { background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 3px; text-align: center; font-size: 11px; font-weight: 700; word-break: keep-all; }
+  .dex svg { width: 100%; height: 60px; }
   .dex .unknown svg { filter: brightness(0); opacity: 0.35; }
   .row { display: flex; gap: 8px; margin-top: 12px; }
   .row button { flex: 1; font: inherit; font-weight: 800; font-size: 15px; padding: 11px; border-radius: 12px; border: 3px solid var(--ink); background: #fff; cursor: pointer; }
@@ -186,12 +190,17 @@
   #toast.show { opacity: 0.95; }
   footer { color: rgba(255,255,255,0.6); font-size: 12px; text-align: center; }
   footer a { color: inherit; }
+  .nickInput { width: 100%; font: inherit; font-size: 18px; font-weight: 700; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+  .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick 0.45s ease-in-out infinite alternate; }
+  @keyframes flick { from { transform: scale(1, 1); } to { transform: scale(0.86, 1.14); } }
+  @media (prefers-reduced-motion: reduce) { #petInner, .twinkle, #zzz span, .flame { animation: none !important; } }
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <h1>🌌 코스모그 키우기</h1>
+    <h1>🥚 포켓몬 알 키우기</h1>
     <div style="display:flex;gap:6px">
       <button class="iconBtn" id="soundBtn" aria-label="소리">🔊</button>
       <button class="iconBtn" id="dexBtn">📖 도감</button>
@@ -387,9 +396,96 @@
     </svg>`;
   }
 
+  // 불꽃: (x, y)는 불꽃 아래쪽 끝
+  function flame(x, y, s, c) {
+    const p = (k) => `M${x} ${y - 2.6 * s * k}C${x + 1.3 * s * k} ${y - 1.4 * s * k} ${x + 1.2 * s * k} ${y} ${x} ${y}C${x - 1.2 * s * k} ${y} ${x - 1.3 * s * k} ${y - 1.4 * s * k} ${x} ${y - 2.6 * s * k}Z`;
+    return `<g class="flame"><path d="${p(1)}" fill="${c[0]}" stroke="${INK}" stroke-width="2.5"/><path d="${p(0.6)}" fill="${c[1]}"/></g>`;
+  }
+  const FIRE = ['#ff6a1f', '#ffd34a'];
+  const BLUE = ['#2f8cff', '#bfe8ff'];
+
+  // 파이리 계열 공통 그림 (몸 색, 날개, 뿔 모양만 다름)
+  function dragonSVG(o, face) {
+    const sk = `stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"`;
+    let wing = '';
+    if (o.wing) {
+      const W = o.wing.big
+        ? 'M80 118C62 66 34 30 4 18L16 50L0 64L20 78L6 98L28 106L20 128L58 128Z'
+        : 'M80 120C64 82 44 60 16 50L24 74L8 86L28 96L18 116L46 124Z';
+      const one = `<path d="${W}" fill="${o.wing.frame}" ${sk}/><path d="${W}" fill="${o.wing.inner}" transform="translate(80 120) scale(.72) translate(-80 -120)"/>`;
+      wing = `<g>${one}</g><g transform="translate(200 0) scale(-1 1)">${one}</g>`;
+    }
+    const H = o.horn || o.body;
+    const horns = {
+      none: '',
+      one: `<path d="M116 58L148 30L134 70Z" fill="${H}" ${sk}/>`,
+      two: `<path d="M78 58L64 22L94 50Z" fill="${H}" ${sk}/><path d="M122 58L136 22L106 50Z" fill="${H}" ${sk}/>`,
+      three: `<path d="M74 60L46 16L92 48Z" fill="${H}" ${sk}/><path d="M126 60L154 16L108 48Z" fill="${H}" ${sk}/><path d="M94 48L100 18L108 48Z" fill="${H}" ${sk}/>`,
+    }[o.horns || 'none'];
+    const brow = o.brow && face === 'normal'
+      ? `<path d="M70 70l22 8M130 70l-22 8" stroke="${INK}" stroke-width="4.5" stroke-linecap="round"/>` : '';
+    const claws = (x) => `<path d="M${x - 10} 190l3 -6 3 6M${x - 2} 191l3 -6 3 6M${x + 6} 190l3 -6 3 6" fill="#fff" stroke="${INK}" stroke-width="1.5"/>`;
+    return `<svg viewBox="0 0 200 200">
+      ${wing}
+      <path d="M126 170C158 170 172 152 172 128" stroke="${INK}" stroke-width="17" fill="none" stroke-linecap="round"/>
+      <path d="M126 170C158 170 172 152 172 128" stroke="${o.body}" stroke-width="10" fill="none" stroke-linecap="round"/>
+      ${flame(172, 126, o.flameSize || 10, o.flame)}
+      <ellipse cx="82" cy="186" rx="15" ry="8" fill="${o.body}" ${sk}/><ellipse cx="118" cy="186" rx="15" ry="8" fill="${o.body}" ${sk}/>
+      ${claws(82)}${claws(118)}
+      <ellipse cx="100" cy="150" rx="38" ry="36" fill="${o.body}" ${sk}/>
+      <ellipse cx="100" cy="157" rx="24" ry="26" fill="${o.belly}"/>
+      <ellipse cx="62" cy="146" rx="8" ry="15" transform="rotate(35 62 146)" fill="${o.body}" ${sk}/>
+      <ellipse cx="138" cy="146" rx="8" ry="15" transform="rotate(-35 138 146)" fill="${o.body}" ${sk}/>
+      ${o.shoulderFlame ? flame(56, 132, 6, o.flame) + flame(144, 132, 6, o.flame) : ''}
+      ${o.armWing ? [0, 1].map((m) => `<g ${m ? 'transform="translate(200 0) scale(-1 1)"' : ''}><path d="M62 142L22 124L36 146L22 158L60 156Z" fill="${o.body}" ${sk}/><path d="M56 145L34 134L42 147L34 154L54 153Z" fill="${o.wing.inner}"/></g>`).join('') : ''}
+      ${horns}
+      <ellipse cx="100" cy="88" rx="48" ry="42" fill="${o.body}" ${sk}/>
+      <circle cx="94" cy="100" r="1.8" fill="${INK}"/><circle cx="106" cy="100" r="1.8" fill="${INK}"/>
+      ${eyes(80, 120, 84, 9, face, o.eye)}
+      ${brow}
+      ${o.cheeks ? cheeks(68, 132, 98) : ''}
+      ${mouth(100, 110, face)}
+    </svg>`;
+  }
+  const DRAGONS = {
+    charmander: { body: '#f7a04b', belly: '#f8e4a8', eye: '#1f8aa8', flame: FIRE, flameSize: 8, cheeks: true },
+    charmeleon: { body: '#e2553c', belly: '#f3dcb2', eye: '#2b4a8a', flame: FIRE, flameSize: 10, horns: 'one', brow: true },
+    charizard: { body: '#f59a45', belly: '#f8e4a8', eye: '#2b6aa8', flame: FIRE, flameSize: 11, horns: 'two',
+      wing: { frame: '#f59a45', inner: '#2b8a9a' } },
+    megax: { body: '#3b3f4e', belly: '#8fd3ff', eye: '#ff3b4b', flame: BLUE, flameSize: 12, horns: 'two', horn: '#5ab8ff',
+      brow: true, shoulderFlame: true, wing: { frame: '#2b2f3e', inner: '#2f62b8', big: true } },
+    megay: { body: '#f7923a', belly: '#f8e4a8', eye: '#2b6aa8', flame: FIRE, flameSize: 15, horns: 'three', armWing: true, brow: true,
+      wing: { frame: '#f59a45', inner: '#2b7a8a', big: true } },
+  };
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
-  const NAMES = { egg: '포켓몬 알', cosmog: '코스모그', cosmoem: '코스모움', solgaleo: '솔가레오', lunala: '루나아라' };
-  const NEED = { cosmog: 120, cosmoem: 180 }; // 진화에 필요한 경험치
+  for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
+  const NAMES = {
+    egg: '포켓몬 알', cosmog: '코스모그', cosmoem: '코스모움', solgaleo: '솔가레오', lunala: '루나아라',
+    charmander: '파이리', charmeleon: '리자드', charizard: '리자몽', megax: '메가리자몽X', megay: '메가리자몽Y',
+  };
+  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180 }; // 진화에 필요한 경험치
+  // 다음 모습 (배열이면 그중 랜덤)
+  const NEXT = {
+    cosmog: 'cosmoem', cosmoem: ['solgaleo', 'lunala'],
+    charmander: 'charmeleon', charmeleon: 'charizard', charizard: ['megax', 'megay'],
+  };
+  const LINES = {
+    cosmog: ['cosmog', 'cosmoem', 'solgaleo', 'lunala'],
+    charmander: ['charmander', 'charmeleon', 'charizard', 'megax', 'megay'],
+  };
+  const FINALS = ['solgaleo', 'lunala', 'megax', 'megay'];
+  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire' };
+  const CRY = {
+    cosmog: '삐유~♪', cosmoem: '(따뜻해…)', solgaleo: '라오—!', lunala: '룰루—!',
+    charmander: '파이~!', charmeleon: '리자—!', charizard: '크와앙!', megax: '크아아앙!!', megay: '크와아앙!!',
+  };
+  const REVEAL = {
+    solgaleo: '☀️ 태양의 빛이 쏟아진다…!', lunala: '🌙 달의 빛이 내려앉는다…!',
+    megax: '💙 푸른 불꽃이 타오른다…!', megay: '🔥 거대한 불꽃이 휘몰아친다…!',
+  };
+  const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥' };
+  const food = () => (S.line === 'cosmog' ? '🍬' : '🍖');
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -397,7 +493,7 @@
     if (withB === '으로') return word + ((has && (c - 0xac00) % 28 !== 8) ? '으로' : '로');
     return word + (has ? withB : noB);
   }
-  const MOVES = { solgaleo: '메테오드라이브', lunala: '섀도레이' };
+  const MOVES = { solgaleo: '메테오드라이브', lunala: '섀도레이', megax: '플레어드라이브', megay: '블래스트번' };
 
   function petSVG(stage, face, warmth) {
     return stage === 'egg' ? eggSVG(warmth || 0) : DRAW[stage](face);
@@ -407,6 +503,7 @@
   function fresh(prev) {
     return {
       stage: 'egg', nick: '', warmth: 0,
+      line: Math.random() < 0.5 ? 'cosmog' : 'charmander', // 알에서 누가 나올지 (50%)
       hunger: 80, mood: 80, clean: 100, energy: 100,
       exp: 0, bond: 0, sleeping: false, messes: 0, messAcc: 0,
       age: 0, last: Date.now(),
@@ -417,6 +514,7 @@
   let S;
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
   if (!S || !S.stage) S = fresh();
+  if (!S.line) S.line = LINES.charmander.includes(S.stage) ? 'charmander' : S.stage === 'egg' ? (Math.random() < 0.5 ? 'cosmog' : 'charmander') : 'cosmog';
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   const clamp = (v) => Math.max(0, Math.min(100, v));
 
@@ -491,7 +589,7 @@
       ['sleep', '🌙', '재우기'], ['pat', '🤗', '쓰다듬기'], ['heal', '💊', '약주기'],
     ],
     final: [
-      ['feed', '🍖', '밥주기'], ['play', '⭐', '놀기'], ['wash', '🫧', '씻기기'],
+      ['feed', '🍬', '밥주기'], ['play', '⭐', '놀기'], ['wash', '🫧', '씻기기'],
       ['sleep', '🌙', '재우기'], ['pat', '🤗', '쓰다듬기'], ['move', '✨', '기술'],
     ],
   };
@@ -510,7 +608,7 @@
       let text = label;
       if (id === 'move') text = MOVES[S.stage];
       if (id === 'sleep') text = '재우기';
-      b.innerHTML = `<span>${icon}</span>${text}`;
+      b.innerHTML = `<span>${id === 'feed' ? food() : icon}</span>${text}`;
       b.addEventListener('click', () => act(id));
       box.appendChild(b);
     }
@@ -533,8 +631,7 @@
     $('stageTag').hidden = !egg && $('nameTag').textContent === NAMES[S.stage];
     const scr = $('screen');
     scr.classList.toggle('night', S.sleeping);
-    scr.classList.toggle('sun', !S.sleeping && S.stage === 'solgaleo');
-    scr.classList.toggle('moon', !S.sleeping && S.stage === 'lunala');
+    for (const c of ['sun', 'moon', 'fire', 'bluefire']) scr.classList.toggle(c, !S.sleeping && BG[S.stage] === c);
     $('zzz').hidden = !S.sleeping;
 
     for (const k of ['hunger', 'mood', 'clean', 'energy']) {
@@ -662,7 +759,7 @@
         if (onCool(id, 1500)) return;
         S.warmth = Math.min(100, S.warmth + 6);
         fx('🎵', 2); tune([523, 659, 784]);
-        say('알 속에서 무언가 반짝여요');
+        say(S.line === 'cosmog' ? '알 속에서 별빛이 반짝여요 ✨' : '알 속에서 불꽃이 일렁여요 🔥');
         break;
       case 'pat':
         if (onCool(id, 1200)) return;
@@ -675,7 +772,7 @@
           gain(3);
           happyUntil = performance.now() + 1500;
           fx('💖', 2); jump(); tune([880, 1046]);
-          say(S.stage === 'cosmog' ? '삐유~♪' : S.stage === 'cosmoem' ? '(따뜻해…)' : S.stage === 'solgaleo' ? '라오—!' : '룰루—!');
+          say(CRY[S.stage]);
         }
         break;
       case 'feed':
@@ -684,7 +781,7 @@
         S.hunger = clamp(S.hunger + 25);
         gain(8);
         happyUntil = performance.now() + 1200;
-        fx(S.stage === 'cosmog' || S.stage === 'cosmoem' ? '🍬' : '🍖', 2); jump();
+        fx(food(), 2); jump();
         tune([660, 880]);
         say(S.stage === 'cosmoem' ? '별빛을 쭉 흡수했어요' : '냠냠!');
         break;
@@ -772,11 +869,14 @@
 
   async function signature() {
     busy = true; render();
-    const sun = S.stage === 'solgaleo';
+    const sun = S.stage === 'solgaleo' || S.stage === 'megay';
     const beam = $('beam');
-    beam.style.background = sun
-      ? 'radial-gradient(circle at 50% 60%, #fff 0 10%, #ffd34a 25%, rgba(255,120,30,0.6) 50%, transparent 75%)'
-      : 'radial-gradient(circle at 50% 60%, #fff 0 8%, #b49bff 25%, rgba(60,30,160,0.7) 50%, transparent 75%)';
+    beam.style.background = {
+      solgaleo: 'radial-gradient(circle at 50% 60%, #fff 0 10%, #ffd34a 25%, rgba(255,120,30,0.6) 50%, transparent 75%)',
+      lunala: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #b49bff 25%, rgba(60,30,160,0.7) 50%, transparent 75%)',
+      megax: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #8fd8ff 22%, rgba(30,110,255,0.75) 50%, transparent 75%)',
+      megay: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #ffd34a 20%, rgba(255,70,20,0.75) 50%, transparent 75%)',
+    }[S.stage];
     say(`${S.nick || NAMES[S.stage]}의 ${MOVES[S.stage]}!`, 2000);
     petInner.classList.add('shake');
     tune(sun ? [523, 659, 784, 1046, 1318] : [392, 466, 587, 698, 932], 0.08);
@@ -784,7 +884,7 @@
     petInner.classList.remove('shake');
     beam.classList.remove('on'); void beam.offsetWidth; beam.classList.add('on');
     vibrate(120);
-    fx(sun ? '☀️' : '🌙', 3);
+    fx(ICON[S.stage], 3);
     await wait(1200);
     S.energy = clamp(S.energy - 20);
     S.mood = clamp(S.mood + 12);
@@ -812,25 +912,29 @@
     vibrate([80, 60, 160]);
     await wait(600);
     petInner.classList.remove('shake');
-    S.stage = 'cosmog';
+    S.stage = S.line;
     S.hunger = 70; S.mood = 80; S.clean = 100; S.energy = 100; S.exp = 0;
-    S.dex.cosmog = true;
+    S.dex[S.line] = true;
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046], 0.12);
-    await story('알에서 코스모그가 태어났다! 🌌', 2400);
+    await story(`알에서 ${josa(NAMES[S.line], '이', '가')} 태어났다! ${S.line === 'cosmog' ? '🌌' : '🔥'}`, 2400);
     $('story').hidden = true;
     busy = false;
     save(); render();
-    say('삐유~!');
+    say(CRY[S.stage]);
   }
 
   async function evolve() {
     busy = true; render();
     $('bubble').classList.remove('show');
     const from = S.stage;
-    const to = from === 'cosmog' ? 'cosmoem' : (Math.random() < 0.5 ? 'solgaleo' : 'lunala');
-    await story(`어라…!? ${S.nick || NAMES[from]}의 모습이…!`, 1600);
+    const nx = NEXT[from];
+    const to = Array.isArray(nx) ? nx[Math.floor(Math.random() * nx.length)] : nx;
+    const mega = to.startsWith('mega');
+    await story(mega
+      ? `${josa(S.nick || NAMES[from], '이', '가')} 지닌 메가스톤이 반응했다…!`
+      : `어라…!? ${S.nick || NAMES[from]}의 모습이…!`, 1800);
     petInner.classList.add('white');
     let delay = 420;
     for (let i = 0; i < 12; i++) {
@@ -855,12 +959,8 @@
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046, 784, 1046, 1318], 0.13);
-    if (to === 'cosmoem') {
-      await story(`축하합니다! ${josa(oldName, '은', '는')} 코스모움으로 진화했다!`, 2600);
-    } else {
-      await story(to === 'solgaleo' ? '☀️ 태양의 빛이 쏟아진다…!' : '🌙 달의 빛이 내려앉는다…!', 1800);
-      await story(`축하합니다! ${josa(oldName, '은', '는')} ${josa(NAMES[to], '으로')} 진화했다!`, 2800);
-    }
+    if (REVEAL[to]) await story(REVEAL[to], 1800);
+    await story(`축하합니다! ${josa(oldName, '은', '는')} ${josa(NAMES[to], '으로')} ${mega ? '메가진화' : '진화'}했다!`, 2800);
     $('story').hidden = true;
     busy = false;
     save(); render();
@@ -868,12 +968,18 @@
   }
 
   function showFinal() {
-    const other = S.stage === 'solgaleo' ? 'lunala' : 'solgaleo';
+    const missing = FINALS.filter((k) => !S.dex[k]).map((k) => NAMES[k]);
+    const how = {
+      solgaleo: '코스모움은 태양의 힘을 받아 <b>솔가레오</b>로 진화했어요.',
+      lunala: '코스모움은 달의 힘을 받아 <b>루나아라</b>로 진화했어요.',
+      megax: '리자몽이 메가스톤의 힘으로 <b>메가리자몽X</b>로 메가진화했어요.',
+      megay: '리자몽이 메가스톤의 힘으로 <b>메가리자몽Y</b>로 메가진화했어요.',
+    }[S.stage];
     openModal(`
-      <h2>${S.stage === 'solgaleo' ? '☀️' : '🌙'} ${NAMES[S.stage]} 탄생!</h2>
+      <h2>${ICON[S.stage]} ${NAMES[S.stage]} 탄생!</h2>
       <div style="height:150px">${petSVG(S.stage, 'happy')}</div>
-      <p>코스모움은 ${S.stage === 'solgaleo' ? '태양' : '달'}의 힘을 받아 <b>${NAMES[S.stage]}</b>로 진화했어요.</p>
-      <p>${S.dex[other] ? '솔가레오와 루나아라를 모두 만났어요! 🎉' : `다음 알에서는 <b>${NAMES[other]}</b>가 나올지도 몰라요. (50% 확률)`}</p>
+      <p>${how}</p>
+      <p>${missing.length ? `아직 못 만난 친구: <b>${missing.join(', ')}</b><br>새 알을 받아서 도전해 보세요!` : '최종 진화를 모두 만났어요! 🎉'}</p>
       <p>계속 함께 놀면서 친밀도를 올리거나, 도감에서 새 알을 받을 수 있어요.</p>
       <div class="row"><button class="primary" data-close>계속 키우기</button></div>`);
   }
@@ -888,17 +994,20 @@
   $('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
   $('dexBtn').addEventListener('click', () => {
-    const list = ['cosmog', 'cosmoem', 'solgaleo', 'lunala'];
-    const cells = list.map((k) => {
+    const cell = (k) => {
       const seen = S.dex[k];
       return `<div class="${seen ? '' : 'unknown'}">${petSVG(k, 'normal')}${seen ? NAMES[k] : '???'}</div>`;
-    }).join('');
+    };
+    const cells = `<div class="dexTitle">🌌 코스모그 계열</div><div class="dex">${LINES.cosmog.map(cell).join('')}</div>
+      <div class="dexTitle">🔥 파이리 계열</div><div class="dex" style="grid-template-columns:repeat(5,1fr)">${LINES.charmander.map(cell).join('')}</div>`;
     const final = !NEED[S.stage] && S.stage !== 'egg';
     openModal(`
       <h2>📖 도감</h2>
-      <div class="dex">${cells}</div>
-      <p>키워낸 전설: <b>${S.raised}마리</b></p>
-      <p>🥚 알 → 코스모그 → 코스모움 → <b>솔가레오</b> 또는 <b>루나아라</b><br>마지막 진화는 50% 랜덤이에요!</p>
+      ${cells}
+      <p>최종 진화까지 키운 친구: <b>${S.raised}마리</b></p>
+      <p>🥚 알에서 <b>코스모그</b> 또는 <b>파이리</b>가 랜덤으로 태어나요.<br>
+      코스모그 → 코스모움 → <b>솔가레오</b> / <b>루나아라</b><br>
+      파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>마지막 진화는 둘 중 하나가 랜덤이에요!</p>
       <div class="row">
         ${final ? '<button class="primary" id="newEgg">🥚 새 알 받기</button>' : ''}
         <button data-close>닫기</button>
@@ -928,10 +1037,16 @@
 
   $('nameTag').addEventListener('click', () => {
     if (S.stage === 'egg') { toast('알에서 태어나면 이름을 지어줄 수 있어요'); return; }
-    const n = prompt('이름을 지어주세요 (최대 8글자)', S.nick || NAMES[S.stage]);
-    if (n === null) return;
-    S.nick = n.trim().slice(0, 8);
-    save(); render();
+    openModal(`<h2>이름 짓기</h2>
+      <p>최대 8글자까지 지을 수 있어요.</p>
+      <input class="nickInput" id="nickInput" maxlength="8" autocomplete="off">
+      <div class="row"><button class="primary" id="nickOk">정하기</button><button data-close>취소</button></div>`);
+    const inp = $('nickInput');
+    inp.value = S.nick || NAMES[S.stage];
+    inp.focus(); inp.select();
+    const ok = () => { S.nick = inp.value.trim().slice(0, 8); save(); render(); closeModal(); toast('이름을 정했어요!'); };
+    $('nickOk').addEventListener('click', ok);
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
   });
 
   $('soundBtn').addEventListener('click', () => {
@@ -1010,7 +1125,7 @@
   window.addEventListener('pagehide', save);
 
   render();
-  if (S.stage === 'egg' && S.warmth < 5) setTimeout(() => say('알을 따뜻하게 해주세요 🔥', 2500), 500);
+  if (S.stage === 'egg' && S.warmth < 5) setTimeout(() => say('누가 태어날까? 따뜻하게 해주세요 🔥', 2500), 500);
 })();
 </script>
 </body>
