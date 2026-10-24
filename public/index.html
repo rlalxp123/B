@@ -3,18 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#ff9ec8">
-<title>뮤 집찾아가기</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>">
+<meta name="theme-color" content="#8a5cc7">
+<title>뮤츠 동굴찾아가기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
 <style>
   :root {
-    --bg: #fff0f6;
+    --bg: #f3eefa;
     --panel: #ffffff;
-    --ink: #4a2338;
-    --accent: #ffa8cf;
-    --accent-dark: #e0569a;
-    --red: #e8453c;
-    --grass: #9bd770;
+    --ink: #2d2340;
+    --accent: #b48ce8;
+    --accent-dark: #7a45c2;
+    --psy: #8a5cc7;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
@@ -29,28 +28,36 @@
   #app { width: 100%; max-width: 640px; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 10px; }
   header { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   h1 { margin: 0; font-size: 22px; letter-spacing: -0.5px; }
-  .stats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  .stats span { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
-  #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--grass); touch-action: none; }
+  .stats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .stats span { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: #cbbd9c; touch-action: none; }
   canvas { display: block; }
   #overlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; text-align: center;
-    background: rgba(255, 240, 246, 0.92); padding: 16px;
+    background: rgba(243, 238, 250, 0.93); padding: 16px;
   }
   #overlay.show { display: flex; }
   #overlay .card { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 360px; }
   #overlay h2 { margin: 0; font-size: 26px; }
   #overlay p { margin: 0; line-height: 1.5; font-size: 15px; }
   .stars { font-size: 34px; letter-spacing: 4px; color: var(--accent-dark); }
+  #toast {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; font-size: 14px; font-weight: 700;
+    padding: 6px 14px; border-radius: 999px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  #toast.show { opacity: 0.92; }
   button {
     font: inherit; font-weight: 700; color: var(--ink);
     background: var(--accent); border: 3px solid var(--ink); border-radius: 12px;
-    padding: 10px 18px; cursor: pointer; box-shadow: 0 4px 0 var(--ink);
+    padding: 10px 14px; cursor: pointer; box-shadow: 0 4px 0 var(--ink);
     touch-action: manipulation;
   }
   button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
   button:disabled { opacity: 0.5; }
+  button:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 2px; }
   .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .dpad { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 4px; touch-action: none; }
   .dpad button { padding: 0; font-size: 24px; border-radius: 14px; }
@@ -58,25 +65,30 @@
   .dpad .left { grid-column: 1; grid-row: 2; }
   .dpad .right { grid-column: 3; grid-row: 2; }
   .dpad .down { grid-column: 2; grid-row: 3; }
-  .side { display: flex; flex-direction: column; gap: 10px; flex: 1; max-width: 200px; }
+  .side { display: flex; flex-direction: column; gap: 10px; flex: 1; max-width: 210px; }
   .side button { background: var(--panel); }
-  .tip { text-align: center; font-size: 13px; opacity: 0.75; margin: 0; }
+  .side #skillBtn { background: var(--psy); color: #fff; padding-block: 10px; font-size: 15px; line-height: 1.35; }
+  .side #skillBtn small { font-size: 13px; opacity: 0.9; }
+  .tip { text-align: center; font-size: 13px; opacity: 0.75; margin: 0; line-height: 1.5; }
   @media (min-width: 700px) and (hover: hover) { .dpad { display: none; } .controls { justify-content: center; } .side { flex-direction: row; max-width: none; flex: 0; } .side button { white-space: nowrap; } }
+  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <h1>💗 뮤 집찾아가기</h1>
+    <h1>🌀 뮤츠 동굴찾아가기</h1>
     <div class="stats">
       <span>레벨 <b id="lv">1</b></span>
       <span>⏱ <b id="time">0.0</b>초</span>
-      <span>💗 <b id="bolts">0/0</b></span>
+      <span>🔮 <b id="orbs">0/0</b></span>
+      <span>PP <b id="pp">0</b></span>
     </div>
   </header>
 
   <div id="wrap">
     <canvas id="board"></canvas>
+    <div id="toast"></div>
     <div id="overlay" class="show">
       <div class="card" id="card"></div>
     </div>
@@ -90,11 +102,12 @@
       <button class="down" data-dir="down" aria-label="아래">▼</button>
     </div>
     <div class="side">
+      <button id="skillBtn">🌀 사이코키네시스</button>
       <button id="hintBtn">💡 힌트 (3)</button>
       <button id="newBtn">🔄 새 미로</button>
     </div>
   </div>
-  <p class="tip">방향키 · WASD · 화면 스와이프 · 버튼으로 움직여요</p>
+  <p class="tip">이동: 방향키 · WASD · 스와이프 · 버튼<br>기술: 스페이스바 · 화면 탭 · 🌀 버튼</p>
 </div>
 
 <script>
@@ -161,6 +174,7 @@
     return cells;
   }
 
+  // shortest path through walls only (rocks count as breakable)
   function findPath(from, to) {
     const key = (x, y) => y * G.cols + x;
     const prev = new Map([[key(from.x, from.y), null]]);
@@ -185,35 +199,60 @@
   // ---------- state ----------
   const G = {
     level: 1,
-    best: parseInt(store('mew-best') || '0', 10) || 0,
+    best: parseInt(store('mewtwo-best') || '0', 10) || 0,
     state: 'menu', // menu | play | win
     cols: 7, rows: 7, maze: null,
     player: null, home: null,
-    bolts: new Set(), total: 0, got: 0,
+    rocks: new Set(), orbs: new Set(), total: 0, got: 0, pp: 0, broken: 0,
     hints: 3, hintUntil: 0,
     t0: 0, elapsed: 0, steps: 0,
     cs: 40, size: 300,
-    particles: [], bump: 0, queued: null,
+    particles: [], beams: [], bump: 0, queued: null,
+    rockTipShown: false,
   };
+
+  function newPlayer() { return { x: 0, y: 0, rx: 0, ry: 0, face: 1, dir: 'right' }; }
 
   function newLevel() {
     const n = Math.min(5 + G.level * 2, 25);
     G.cols = n; G.rows = n;
     G.maze = makeMaze(n, n);
-    G.player = { x: 0, y: 0, rx: 0, ry: 0, face: 1 };
+    G.player = newPlayer();
     G.home = { x: n - 1, y: n - 1 };
-    G.bolts = new Set();
-    G.total = Math.min(2 + G.level, 12);
-    let guard = 0;
-    while (G.bolts.size < G.total && guard++ < 1000) {
-      const x = rand(n), y = rand(n);
-      if ((x === 0 && y === 0) || (x === G.home.x && y === G.home.y)) continue;
-      G.bolts.add(y * n + x);
+    const isEnd = (x, y) => (x === 0 && y === 0) || (x === G.home.x && y === G.home.y);
+
+    // rocks: some block the shortest route, the rest are scattered
+    G.rocks = new Set();
+    const path = findPath(G.player, G.home).slice(2, -1);
+    const onPath = Math.min(1 + Math.floor(G.level / 2), 5, path.length);
+    while (G.rocks.size < onPath) {
+      const [x, y] = path[rand(path.length)];
+      G.rocks.add(y * n + x);
     }
-    G.total = G.bolts.size;
-    G.got = 0; G.hints = 3; G.hintUntil = 0;
+    const scattered = Math.min(G.level + 1, 14);
+    let guard = 0;
+    while (G.rocks.size < onPath + scattered && guard++ < 1000) {
+      const x = rand(n), y = rand(n);
+      if (isEnd(x, y) || (x + y <= 1)) continue;
+      G.rocks.add(y * n + x);
+    }
+
+    // orbs: collect for stars, each one also restores 1 PP
+    G.orbs = new Set();
+    const want = Math.min(2 + G.level, 12);
+    guard = 0;
+    while (G.orbs.size < want && guard++ < 1000) {
+      const x = rand(n), y = rand(n), k = y * n + x;
+      if (isEnd(x, y) || G.rocks.has(k)) continue;
+      G.orbs.add(k);
+    }
+    G.total = G.orbs.size;
+    // enough PP for every rock on the shortest route, plus one spare
+    const blocking = findPath(G.player, G.home).filter(([x, y]) => G.rocks.has(y * n + x)).length;
+    G.pp = blocking + 1;
+    G.got = 0; G.broken = 0; G.hints = 3; G.hintUntil = 0;
     G.t0 = 0; G.elapsed = 0; G.steps = 0;
-    G.particles = []; G.queued = null;
+    G.particles = []; G.beams = []; G.queued = null;
     G.state = 'play';
     hideOverlay();
     resize();
@@ -221,45 +260,91 @@
   }
 
   // ---------- movement ----------
+  function moving() {
+    const p = G.player;
+    return Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) > 0.45;
+  }
+
   function tryMove(dir) {
     if (G.state !== 'play') return;
     const p = G.player;
-    // still mid-animation: buffer one move
-    if (Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) > 0.45) { G.queued = dir; return; }
+    if (moving()) { G.queued = dir; return; }
     const [dx, dy, w] = DIRS[dir];
+    p.dir = dir;
     if (dx) p.face = dx;
     if (G.maze[p.y][p.x][w]) { G.bump = 1; return; }
+    const k = (p.y + dy) * G.cols + (p.x + dx);
+    if (G.rocks.has(k)) {
+      G.bump = 1;
+      if (!G.rockTipShown) { toast('바위가 막고 있어요! 🌀 기술로 부숴요'); G.rockTipShown = true; }
+      return;
+    }
     p.x += dx; p.y += dy;
     G.steps++;
     if (!G.t0) G.t0 = performance.now();
-    const k = p.y * G.cols + p.x;
-    if (G.bolts.has(k)) {
-      G.bolts.delete(k);
+    if (G.orbs.has(k)) {
+      G.orbs.delete(k);
       G.got++;
-      burst(p.x, p.y, '#ff6fae', 14);
+      G.pp++;
+      burst(p.x, p.y, '#c79bff', 14);
+      toast('🔮 구슬 획득! PP +1');
       buzz(15);
     }
     if (p.x === G.home.x && p.y === G.home.y) win();
     updateHud();
   }
 
+  function useSkill() {
+    if (G.state !== 'play') return;
+    const p = G.player;
+    const [dx, dy, w] = DIRS[p.dir];
+    const tx = p.x + dx, ty = p.y + dy;
+    const k = ty * G.cols + tx;
+    const hasRock = !G.maze[p.y][p.x][w] && G.rocks.has(k);
+    if (!hasRock) {
+      G.beams.push({ x0: p.x, y0: p.y, x1: p.x + dx * 0.6, y1: p.y + dy * 0.6, t: 0, miss: true });
+      toast('바라보는 쪽에 바위가 없어요');
+      return;
+    }
+    if (G.pp <= 0) { toast('PP가 없어요! 🔮 구슬을 모으세요'); G.bump = 1; return; }
+    G.pp--;
+    G.broken++;
+    G.rocks.delete(k);
+    if (!G.t0) G.t0 = performance.now();
+    G.beams.push({ x0: p.x, y0: p.y, x1: tx, y1: ty, t: 0 });
+    burst(tx, ty, '#8d8174', 16);
+    burst(tx, ty, '#c79bff', 10);
+    buzz([20, 30, 40]);
+    updateHud();
+  }
+
   function win() {
     G.state = 'win';
     G.elapsed = (performance.now() - G.t0) / 1000;
-    for (let i = 0; i < 4; i++) burst(G.home.x, G.home.y, ['#ff6fae', '#ffd1e6', '#8ec5ff', '#ffffff'][i], 18);
+    for (let i = 0; i < 4; i++) burst(G.home.x, G.home.y, ['#c79bff', '#8a5cc7', '#ffffff', '#f2c6ff'][i], 18);
     buzz([30, 40, 30]);
-    if (G.level > G.best) { G.best = G.level; store('mew-best', String(G.best)); }
+    if (G.level > G.best) { G.best = G.level; store('mewtwo-best', String(G.best)); }
     const stars = 1 + (G.got >= Math.ceil(G.total / 2) ? 1 : 0) + (G.got === G.total ? 1 : 0);
     setTimeout(() => showOverlay(`
-      <h2>🏠 집에 도착했어요!</h2>
+      <h2>⛰️ 동굴에 도착했어요!</h2>
       <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
       <p>레벨 ${G.level} 클리어<br>
-      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · 💗 ${G.got}/${G.total}</p>
+      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음<br>
+      🔮 ${G.got}/${G.total} · 🪨 바위 ${G.broken}개 부숨</p>
       <button id="nextBtn">다음 레벨 ▶</button>
     `, () => $('nextBtn').onclick = () => { G.level++; newLevel(); }), 700);
   }
 
   function buzz(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+  }
 
   function burst(cx, cy, color, n) {
     for (let i = 0; i < n; i++) {
@@ -272,6 +357,11 @@
   addEventListener('keydown', (e) => {
     const dir = KEYS[e.key];
     if (dir) { e.preventDefault(); tryMove(dir); return; }
+    if (G.state === 'play' && (e.key === ' ' || e.key === 'e' || e.key === 'E' || e.key === 'Enter')) {
+      e.preventDefault();
+      if (!e.repeat) useSkill();
+      return;
+    }
     if ((e.key === 'Enter' || e.key === ' ') && G.state !== 'play') {
       e.preventDefault();
       const b = document.querySelector('#overlay button');
@@ -279,10 +369,11 @@
     }
   });
 
+  // swipe/drag to move, short tap to use the skill
   let touch = null;
   wrap.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    touch = { x: t.clientX, y: t.clientY };
+    touch = { x: t.clientX, y: t.clientY, moved: false, at: performance.now() };
   }, { passive: true });
   wrap.addEventListener('touchmove', (e) => {
     if (!touch || G.state !== 'play') return;
@@ -290,13 +381,16 @@
     const t = e.touches[0];
     const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
     const step = Math.max(24, G.cs * 0.8);
-    // dragging keeps moving: one cell per `step` pixels
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 10) touch.moved = true;
     if (Math.max(Math.abs(dx), Math.abs(dy)) >= step) {
       tryMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
-      touch = { x: t.clientX, y: t.clientY };
+      touch.x = t.clientX; touch.y = t.clientY;
     }
   }, { passive: false });
-  wrap.addEventListener('touchend', () => { touch = null; });
+  wrap.addEventListener('touchend', () => {
+    if (touch && !touch.moved && performance.now() - touch.at < 300) useSkill();
+    touch = null;
+  });
 
   // D-pad with hold-to-repeat
   let holdTimer = null;
@@ -312,6 +406,7 @@
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stopHold));
   });
 
+  $('skillBtn').onclick = useSkill;
   $('hintBtn').onclick = () => {
     if (G.state !== 'play' || G.hints <= 0) return;
     G.hints--;
@@ -330,18 +425,22 @@
 
   function updateHud() {
     $('lv').textContent = G.level;
-    $('bolts').textContent = `${G.got}/${G.total}`;
+    $('orbs').textContent = `${G.got}/${G.total}`;
+    $('pp').textContent = G.pp;
+    $('skillBtn').innerHTML = `🌀 사이코키네시스<br><small>PP ${G.pp} 남음</small>`;
+    $('skillBtn').disabled = G.state !== 'play';
     $('hintBtn').textContent = `💡 힌트 (${G.hints})`;
     $('hintBtn').disabled = G.hints <= 0 || G.state !== 'play';
   }
 
   function menu() {
     G.state = 'menu';
-    if (!G.maze) { G.maze = makeMaze(7, 7); G.player = { x: 0, y: 0, rx: 0, ry: 0, face: 1 }; G.home = { x: 6, y: 6 }; }
+    if (!G.maze) { G.maze = makeMaze(7, 7); G.player = newPlayer(); G.home = { x: 6, y: 6 }; }
     showOverlay(`
-      <h2>💗 뮤 집찾아가기</h2>
-      <p>길을 잃은 뮤를 미로 끝의 <b>집 🏠</b>까지 데려다 주세요!<br>
-      가는 길에 <b>하트 💗</b>를 모으면 별을 더 받아요.</p>
+      <h2>🌀 뮤츠 동굴찾아가기</h2>
+      <p>뮤츠를 미로 끝의 <b>동굴 ⛰️</b>까지 데려다 주세요!<br>
+      길을 막는 <b>바위 🪨</b>는 <b>사이코키네시스</b>로 부숴요.<br>
+      기술은 PP를 1 써요. <b>구슬 🔮</b>을 모으면 PP가 1 늘고 별도 더 받아요.</p>
       ${G.best ? `<p>최고 기록: 레벨 ${G.best}</p>` : ''}
       <button id="startBtn">시작하기</button>
     `, () => $('startBtn').onclick = () => { G.level = 1; newLevel(); });
@@ -352,7 +451,7 @@
   // ---------- layout ----------
   function resize() {
     const maxW = Math.min(document.getElementById('app').clientWidth - 32, 600);
-    const reserved = matchMedia('(min-width: 700px) and (hover: hover)').matches ? 190 : 330;
+    const reserved = matchMedia('(min-width: 700px) and (hover: hover)').matches ? 210 : 360;
     const maxH = window.innerHeight - reserved;
     let size = Math.max(220, Math.min(maxW, maxH));
     G.cs = Math.floor(size / G.cols);
@@ -370,14 +469,14 @@
   function drawGround() {
     const { cs, cols, rows } = G;
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-      ctx.fillStyle = (x + y) % 2 ? '#a5dc7a' : '#9bd770';
+      ctx.fillStyle = (x + y) % 2 ? '#d3c6a6' : '#cbbd9c';
       ctx.fillRect(x * cs, y * cs, cs, cs);
     }
   }
 
   function drawWalls() {
     const { cs, cols, rows, maze } = G;
-    ctx.strokeStyle = '#2f6b2a';
+    ctx.strokeStyle = '#4a3c30';
     ctx.lineCap = 'round';
     ctx.lineWidth = Math.max(3, cs * 0.16);
     ctx.beginPath();
@@ -389,8 +488,7 @@
       if (x === cols - 1 && c[1]) { ctx.moveTo(px + cs, py); ctx.lineTo(px + cs, py + cs); }
     }
     ctx.stroke();
-    // lighter highlight on hedges
-    ctx.strokeStyle = '#4c9a3f';
+    ctx.strokeStyle = '#7a6552';
     ctx.lineWidth = Math.max(1, cs * 0.06);
     ctx.stroke();
   }
@@ -401,7 +499,7 @@
     const { cs } = G;
     ctx.save();
     ctx.globalAlpha = Math.min(1, (G.hintUntil - now) / 500);
-    ctx.strokeStyle = '#fff4fa';
+    ctx.strokeStyle = '#f6eaff';
     ctx.lineWidth = Math.max(3, cs * 0.18);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.setLineDash([cs * 0.25, cs * 0.3]);
@@ -415,169 +513,248 @@
     ctx.restore();
   }
 
-  function drawHeart(cx, cy, s) {
+  function drawRock(cx, cy, s, seed) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(s, s);
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(0, 0.32);
-    ctx.bezierCurveTo(-0.5, 0.02, -0.36, -0.42, 0, -0.17);
-    ctx.bezierCurveTo(0.36, -0.42, 0.5, 0.02, 0, 0.32);
+    const pts = 9;
+    for (let i = 0; i < pts; i++) {
+      const a = (i / pts) * Math.PI * 2;
+      const r = 0.36 + 0.06 * Math.sin(seed * 3.1 + i * 2.3);
+      const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.85 + 0.04;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
     ctx.closePath();
-    ctx.fillStyle = '#ff6fae'; ctx.fill();
-    ctx.lineWidth = 0.06; ctx.strokeStyle = '#8a2456'; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath(); ctx.ellipse(-0.15, -0.12, 0.06, 0.04, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#9a8f84'; ctx.fill();
+    ctx.lineWidth = 0.06; ctx.strokeStyle = '#3e342c'; ctx.stroke();
+    // top highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(-0.1, -0.12, 0.16, 0.08, -0.3, 0, Math.PI * 2); ctx.fill();
+    // cracks
+    ctx.strokeStyle = '#5a4e44'; ctx.lineWidth = 0.04;
+    ctx.beginPath();
+    ctx.moveTo(0.05, -0.25); ctx.lineTo(0.0, -0.08); ctx.lineTo(0.1, 0.05);
+    ctx.moveTo(0.0, -0.08); ctx.lineTo(-0.12, 0.02);
+    ctx.stroke();
     ctx.restore();
   }
 
-  function drawBolts(now) {
+  function drawRocks() {
     const { cs, cols } = G;
-    for (const k of G.bolts) {
+    for (const k of G.rocks) {
       const x = k % cols, y = Math.floor(k / cols);
-      const bob = Math.sin(now / 300 + k) * cs * 0.06;
-      drawHeart((x + 0.5) * cs, (y + 0.5) * cs + bob, cs * 0.75);
+      drawRock((x + 0.5) * cs, (y + 0.5) * cs, cs, k);
     }
   }
 
-  function drawHome(now) {
-    const { cs } = G;
-    const cx = (G.home.x + 0.5) * cs, cy = (G.home.y + 0.5) * cs;
-    const s = cs * 0.8;
+  function drawOrb(cx, cy, s, now, k) {
+    const pulse = 1 + Math.sin(now / 250 + k) * 0.08;
     ctx.save();
-    ctx.translate(cx, cy + s * 0.05);
-    // glow
-    const g = 0.5 + 0.5 * Math.sin(now / 400);
-    ctx.fillStyle = `rgba(255, 240, 120, ${0.25 + 0.2 * g})`;
-    ctx.beginPath(); ctx.arc(0, 0, s * 0.62, 0, Math.PI * 2); ctx.fill();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(1.5, s * 0.05);
-    ctx.strokeStyle = '#3b2a12';
-    // walls
-    ctx.fillStyle = '#fff1cf';
-    ctx.fillRect(-s * 0.32, -s * 0.05, s * 0.64, s * 0.42);
-    ctx.strokeRect(-s * 0.32, -s * 0.05, s * 0.64, s * 0.42);
-    // roof
-    ctx.fillStyle = '#e8453c';
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.44, -s * 0.03); ctx.lineTo(0, -s * 0.42); ctx.lineTo(s * 0.44, -s * 0.03); ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    // door
-    ctx.fillStyle = '#8a5a2b';
-    ctx.fillRect(-s * 0.08, s * 0.14, s * 0.16, s * 0.23);
-    ctx.strokeRect(-s * 0.08, s * 0.14, s * 0.16, s * 0.23);
-    // window
-    ctx.fillStyle = '#9fdcff';
-    ctx.fillRect(s * 0.13, s * 0.03, s * 0.12, s * 0.1);
-    ctx.strokeRect(s * 0.13, s * 0.03, s * 0.12, s * 0.1);
+    ctx.translate(cx, cy);
+    ctx.scale(s * pulse, s * pulse);
+    const g = ctx.createRadialGradient(-0.07, -0.08, 0.02, 0, 0, 0.24);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.35, '#d6b5ff');
+    g.addColorStop(1, '#7a45c2');
+    ctx.fillStyle = 'rgba(199, 155, 255, 0.35)';
+    ctx.beginPath(); ctx.arc(0, 0, 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 0.04; ctx.strokeStyle = '#4b2580'; ctx.stroke();
     ctx.restore();
   }
 
-  function drawMew(cx, cy, s, face, now) {
-    // Mew floats, so it bobs gently instead of hopping
-    const float = Math.sin(now / 420) * s * 0.04 + s * 0.02;
-    const lift = G.state === 'win' ? Math.abs(Math.sin(now / 160)) * s * 0.22 + float : float;
+  function drawOrbs(now) {
+    const { cs, cols } = G;
+    for (const k of G.orbs) {
+      const x = k % cols, y = Math.floor(k / cols);
+      const bob = Math.sin(now / 300 + k) * cs * 0.05;
+      drawOrb((x + 0.5) * cs, (y + 0.5) * cs + bob, cs, now, k);
+    }
+  }
+
+  function drawCave(now) {
+    const { cs } = G;
+    const cx = (G.home.x + 0.5) * cs, cy = (G.home.y + 0.5) * cs;
+    const s = cs * 0.9;
+    ctx.save();
+    ctx.translate(cx, cy + s * 0.05);
+    const g = 0.5 + 0.5 * Math.sin(now / 400);
+    ctx.fillStyle = `rgba(199, 155, 255, ${0.25 + 0.2 * g})`;
+    ctx.beginPath(); ctx.arc(0, 0, s * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.5, s * 0.045);
+    ctx.strokeStyle = '#2e2620';
+    // mountain mound
+    ctx.fillStyle = '#7d6a58';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.46, s * 0.36);
+    ctx.lineTo(-s * 0.3, -s * 0.12);
+    ctx.lineTo(-s * 0.12, -s * 0.36);
+    ctx.lineTo(s * 0.04, -s * 0.24);
+    ctx.lineTo(s * 0.18, -s * 0.38);
+    ctx.lineTo(s * 0.34, -s * 0.1);
+    ctx.lineTo(s * 0.46, s * 0.36);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // snow / light caps
+    ctx.fillStyle = '#a8957f';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.22, -s * 0.22); ctx.lineTo(-s * 0.12, -s * 0.36); ctx.lineTo(s * 0.0, -s * 0.27); ctx.closePath();
+    ctx.fill();
+    // dark cave mouth with a purple glow inside
+    ctx.fillStyle = '#1a1420';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.2, s * 0.36);
+    ctx.quadraticCurveTo(-s * 0.22, -s * 0.06, 0, -s * 0.08);
+    ctx.quadraticCurveTo(s * 0.22, -s * 0.06, s * 0.2, s * 0.36);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = `rgba(160, 110, 230, ${0.35 + 0.3 * g})`;
+    ctx.beginPath(); ctx.ellipse(0, s * 0.2, s * 0.08, s * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMewtwo(cx, cy, s, face, now) {
+    const float = Math.sin(now / 450) * s * 0.03;
+    const lift = G.state === 'win' ? Math.abs(Math.sin(now / 170)) * s * 0.18 + float : float;
     const shake = G.bump > 0 ? Math.sin(G.bump * 40) * s * 0.06 * G.bump : 0;
-    const P = '#ffb3d4', PD = '#f07fb4', K = '#4a2338';
+    const L = '#e4ddef', P = '#9a6fcf', K = '#2d2340';
+    const lw = Math.max(1.2, s * 0.03);
     ctx.save();
     ctx.translate(cx + shake, cy - lift);
     ctx.scale(face, 1);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.strokeStyle = K;
-    const lw = Math.max(1.2, s * 0.032);
-    ctx.lineWidth = lw;
+    ctx.strokeStyle = K; ctx.lineWidth = lw;
 
-    // shadow on the ground, smaller when higher
+    // psychic aura while casting or celebrating
+    const casting = G.beams.some((b) => !b.miss && b.t < 1);
+    if (casting || G.state === 'win') {
+      ctx.fillStyle = `rgba(170, 120, 240, ${0.25 + 0.1 * Math.sin(now / 60)})`;
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.5, s * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // shadow
     ctx.save();
     ctx.translate(0, lift);
-    const sh = 1 - Math.min(0.5, lift / s);
-    ctx.fillStyle = 'rgba(0,0,0,0.14)';
-    ctx.beginPath(); ctx.ellipse(0, s * 0.43, s * 0.22 * sh, s * 0.055 * sh, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, s * 0.43, s * 0.24, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // long thin tail with an oval tip, swaying
-    const sway = Math.sin(now / 350) * s * 0.06;
-    const tx = -s * 0.47 + sway, ty = -s * 0.24;
+    // thick purple tail curling behind
+    const sway = Math.sin(now / 500) * s * 0.04;
     const tail = () => {
       ctx.beginPath();
-      ctx.moveTo(-s * 0.1, s * 0.28);
-      ctx.bezierCurveTo(-s * 0.45, s * 0.42, -s * 0.62, s * 0.05, tx, ty);
+      ctx.moveTo(-s * 0.08, s * 0.25);
+      ctx.bezierCurveTo(-s * 0.5, s * 0.42, -s * 0.58, s * 0.05, -s * 0.42 + sway, -s * 0.14);
     };
-    tail(); ctx.lineWidth = Math.max(3, s * 0.085); ctx.stroke();
-    tail(); ctx.lineWidth = Math.max(1.5, s * 0.05); ctx.strokeStyle = P; ctx.stroke();
+    tail(); ctx.lineWidth = Math.max(4, s * 0.13); ctx.stroke();
+    tail(); ctx.lineWidth = Math.max(2.5, s * 0.09); ctx.strokeStyle = P; ctx.stroke();
     ctx.strokeStyle = K; ctx.lineWidth = lw;
     ctx.fillStyle = P;
-    ctx.beginPath(); ctx.ellipse(tx, ty - s * 0.06, s * 0.065, s * 0.1, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-s * 0.42 + sway, -s * 0.17, s * 0.07, s * 0.08, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // ears (behind head)
-    const ear = (side) => {
-      ctx.beginPath();
-      ctx.moveTo(side * s * 0.27, -s * 0.16);
-      ctx.lineTo(side * s * 0.33, -s * 0.46);
-      ctx.lineTo(side * s * 0.07, -s * 0.33);
-      ctx.closePath();
-      ctx.fillStyle = P; ctx.fill(); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(side * s * 0.25, -s * 0.22);
-      ctx.lineTo(side * s * 0.29, -s * 0.39);
-      ctx.lineTo(side * s * 0.14, -s * 0.31);
-      ctx.closePath();
-      ctx.fillStyle = PD; ctx.fill();
-    };
-    ear(-1); ear(1);
+    // legs
+    ctx.fillStyle = L;
+    ctx.beginPath(); ctx.ellipse(-s * 0.09, s * 0.35, s * 0.07, s * 0.08, 0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.35, s * 0.07, s * 0.08, -0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // small body and dangling legs
+    // body with purple belly
+    ctx.beginPath(); ctx.ellipse(0, s * 0.17, s * 0.17, s * 0.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(0, s * 0.17, s * 0.17, s * 0.2, 0, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = P;
-    ctx.beginPath(); ctx.ellipse(-s * 0.07, s * 0.35, s * 0.05, s * 0.08, 0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(s * 0.08, s * 0.35, s * 0.05, s * 0.08, -0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(0, s * 0.2, s * 0.15, s * 0.16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // tiny arms
-    ctx.beginPath(); ctx.ellipse(s * 0.13, s * 0.15, s * 0.055, s * 0.035, -0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(-s * 0.13, s * 0.15, s * 0.055, s * 0.035, 0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // big round head
-    ctx.fillStyle = P;
-    ctx.beginPath(); ctx.ellipse(0, -s * 0.1, s * 0.29, s * 0.25, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // hide the head/body seam
-    ctx.beginPath(); ctx.ellipse(0, s * 0.09, s * 0.11, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
-
-    // large blue eyes
-    const ey = -s * 0.1;
-    for (const ex of [-s * 0.09, s * 0.15]) {
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.07, s * 0.095, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#3f86e8';
-      ctx.beginPath(); ctx.ellipse(ex + s * 0.012, ey + s * 0.012, s * 0.055, s * 0.078, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#1c2b66';
-      ctx.beginPath(); ctx.ellipse(ex + s * 0.015, ey + s * 0.02, s * 0.03, s * 0.045, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(ex - s * 0.01, ey - s * 0.035, s * 0.02, 0, Math.PI * 2); ctx.fill();
-    }
-    // blush and smile
-    ctx.fillStyle = 'rgba(240, 90, 150, 0.35)';
-    ctx.beginPath(); ctx.ellipse(-s * 0.18, s * 0.01, s * 0.04, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(s * 0.25, s * 0.01, s * 0.04, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = Math.max(1, s * 0.022);
-    ctx.beginPath();
-    ctx.moveTo(s * 0.0, s * 0.02);
-    ctx.quadraticCurveTo(s * 0.04, s * 0.06, s * 0.08, s * 0.02);
-    ctx.stroke();
-
-    // sparkles when home
-    if (G.state === 'win') {
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 4; i++) {
-        const a = now / 300 + i * Math.PI / 2;
-        const r = s * 0.48, sz = s * (0.05 + 0.03 * Math.sin(now / 100 + i));
-        const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.8 - s * 0.05;
-        ctx.beginPath();
-        ctx.moveTo(x, y - sz * 2); ctx.lineTo(x + sz * 0.5, y); ctx.lineTo(x, y + sz * 2); ctx.lineTo(x - sz * 0.5, y); ctx.closePath();
-        ctx.moveTo(x - sz * 2, y); ctx.lineTo(x, y + sz * 0.5); ctx.lineTo(x + sz * 2, y); ctx.lineTo(x, y - sz * 0.5); ctx.closePath();
-        ctx.fill();
-      }
-    }
+    ctx.beginPath(); ctx.ellipse(s * 0.02, s * 0.3, s * 0.12, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+
+    // neck tube from the back of the head to the shoulders
+    const tube = () => {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.12, -s * 0.1);
+      ctx.quadraticCurveTo(-s * 0.24, -s * 0.0, -s * 0.12, s * 0.05);
+    };
+    tube(); ctx.lineWidth = Math.max(3, s * 0.08); ctx.stroke();
+    tube(); ctx.lineWidth = Math.max(2, s * 0.045); ctx.strokeStyle = L; ctx.stroke();
+    ctx.strokeStyle = K; ctx.lineWidth = lw;
+
+    // arm reaching forward (casts the skill)
+    const reach = casting ? s * 0.08 : 0;
+    ctx.fillStyle = L;
+    ctx.beginPath(); ctx.ellipse(s * 0.17 + reach * 0.5, s * 0.12, s * 0.09 + reach * 0.5, s * 0.04, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s * 0.27 + reach, s * 0.1, s * 0.04, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // horns / ears (blunt, angled out)
+    const horn = (x, rot) => {
+      ctx.save();
+      ctx.translate(x, -s * 0.3);
+      ctx.rotate(rot);
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.05, s * 0.045, s * 0.085, 0, 0, Math.PI * 2);
+      ctx.fillStyle = L; ctx.fill(); ctx.stroke();
+      ctx.restore();
+    };
+    horn(-s * 0.1, -0.35);
+    horn(s * 0.12, 0.35);
+
+    // head
+    ctx.fillStyle = L;
+    ctx.beginPath(); ctx.ellipse(s * 0.01, -s * 0.16, s * 0.2, s * 0.17, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // serious almond eyes with purple irises
+    const eye = (ex, tilt) => {
+      ctx.save();
+      ctx.translate(ex, -s * 0.16);
+      ctx.rotate(tilt);
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.055, s * 0.035, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = Math.max(1, s * 0.022); ctx.stroke();
+      ctx.fillStyle = '#7b2fbf';
+      ctx.beginPath(); ctx.arc(s * 0.018, 0, s * 0.027, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = K;
+      ctx.beginPath(); ctx.arc(s * 0.02, 0, s * 0.013, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+    eye(-s * 0.05, 0.22);
+    eye(s * 0.11, -0.22);
+    // brow ridges
+    ctx.lineWidth = Math.max(1, s * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.1, -s * 0.215); ctx.lineTo(-s * 0.005, -s * 0.195);
+    ctx.moveTo(s * 0.06, -s * 0.195); ctx.lineTo(s * 0.16, -s * 0.215);
+    ctx.stroke();
+    // small mouth
+    ctx.beginPath(); ctx.moveTo(s * 0.03, -s * 0.07); ctx.lineTo(s * 0.08, -s * 0.075); ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawBeams(dt) {
+    const { cs } = G;
+    G.beams = G.beams.filter((b) => b.t < 1);
+    for (const b of G.beams) {
+      b.t += dt * 2.8;
+      const a = Math.max(0, 1 - b.t);
+      const x0 = (b.x0 + 0.5) * cs, y0 = (b.y0 + 0.5) * cs;
+      const x1 = (b.x1 + 0.5) * cs, y1 = (b.y1 + 0.5) * cs;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = '#b07cff';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = cs * 0.28 * a + 2;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = cs * 0.08 * a + 1;
+      ctx.stroke();
+      // expanding psychic rings at the target
+      for (let i = 0; i < 3; i++) {
+        const r = cs * (0.15 + b.t * 0.6 + i * 0.15);
+        ctx.strokeStyle = i % 2 ? '#e6d2ff' : '#8a5cc7';
+        ctx.lineWidth = Math.max(1.5, cs * 0.05);
+        ctx.beginPath(); ctx.arc(x1, y1, r, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   function drawParticles(dt) {
@@ -605,7 +782,7 @@
       p.ry += (p.y - p.ry) * k;
       if (Math.abs(p.rx - p.x) < 0.01) p.rx = p.x;
       if (Math.abs(p.ry - p.y) < 0.01) p.ry = p.y;
-      if (G.queued && Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) <= 0.45) {
+      if (G.queued && !moving()) {
         const q = G.queued; G.queued = null; tryMove(q);
       }
     }
@@ -624,9 +801,11 @@
       drawGround();
       drawHint(now);
       drawWalls();
-      drawBolts(now);
-      drawHome(now);
-      drawMew((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.9, p.face, now);
+      drawRocks();
+      drawOrbs(now);
+      drawCave(now);
+      drawBeams(dt);
+      drawMewtwo((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.92, p.face, now);
       drawParticles(dt * 4);
     }
     requestAnimationFrame(frame);
