@@ -660,9 +660,214 @@
     sylveon: { body: '#fbfbfd', earIn: '#f59ac0', ear: 'tall', tail: 'ribbon', bow: true, eye: '#3a8fd8' },
   };
 
+  // ---------- 전설의 포켓몬 ----------
+  const MIR = (x) => `<g transform="translate(200 0) scale(-1 1)">${x}</g>`;
+  const both = (x) => x + MIR(x);
+  const tube = (d, w, color) =>
+    `<path d="${d}" stroke="${INK}" stroke-width="${w + 6}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+
+  // 새 모양 (프리져, 썬더, 파이어, 칠색조, 루기아)
+  function birdSVG(o, face) {
+    const c = o.body;
+    const id = 'wg' + o.key;
+    const W = {
+      round: 'M74 122C46 110 18 82 8 50C24 58 32 56 40 64C42 54 50 52 56 60C60 52 68 54 72 64C80 84 84 100 86 122Z',
+      spiky: 'M76 120L2 74L30 78L8 50L40 62L24 30L56 56L58 32L82 96Z',
+      hand: 'M76 118C52 114 22 98 6 64L22 66L10 46L30 54L24 32L44 50L52 38L80 96Z',
+    }[o.wing];
+    let wing = `<path d="${W}" fill="url(#${id})" ${SK}/>`;
+    if (o.wingFlame) wing += flame(16, 62, 6, FIRE) + flame(36, 68, 6, FIRE) + flame(56, 68, 5, FIRE);
+    const tail = {
+      fan: `<path d="M90 160L58 196L100 180L142 196L110 160Z" fill="${o.tailC}" ${SK}/><path d="M100 164L100 196" stroke="${o.tailC2 || o.tailC}" stroke-width="8" stroke-linecap="round"/>`,
+      long: `<path d="M110 164C150 192 194 174 190 128C182 158 152 170 120 154Z" fill="${o.tailC}" ${SK}/>`,
+      flame: flame(84, 196, 8, FIRE) + flame(100, 198, 10, FIRE) + flame(116, 196, 8, FIRE),
+      spiky: `<path d="M88 160L76 196L94 182L100 198L106 182L124 196L112 160Z" fill="${o.tailC}" ${SK}/>`,
+    }[o.tail];
+    const crest = {
+      tuft: `<path d="M88 52Q78 24 92 14Q94 34 100 46Q104 22 118 18Q108 38 112 54Z" fill="${o.crestC}" ${SK}/>`,
+      spikes: `<path d="M70 62L60 26L80 44L84 10L96 40L106 6L112 40L130 18L126 50L142 40L130 64Z" fill="${o.crestC}" ${SK}/>`,
+      flame: flame(88, 56, 7, FIRE) + flame(100, 52, 10, FIRE) + flame(112, 56, 7, FIRE),
+      gold: `<path d="M96 50C92 26 112 10 128 22C114 22 108 34 112 52Z" fill="${o.crestC}" ${SK}/>`,
+      fins: `<path d="M84 52L76 20L96 46Z" fill="${o.crestC}" ${SK}/><path d="M116 52L124 20L104 46Z" fill="${o.crestC}" ${SK}/>`,
+    }[o.crest] || '';
+    const beak = o.beak
+      ? `<path d="M90 96L100 116L110 96Z" fill="${o.beak}" ${SK}/>`
+      : `<ellipse cx="100" cy="102" rx="16" ry="11" fill="${c}" ${SK}/>${mouth(100, 104, face)}`;
+    return `<svg viewBox="0 0 200 200"><defs><linearGradient id="${id}" x1="1" y1="0" x2="0" y2="0">
+        <stop offset="0" stop-color="${o.wingC || c}"/><stop offset="1" stop-color="${o.wingTip || o.wingC || c}"/></linearGradient></defs>
+      ${tail}
+      ${both(wing)}
+      ${o.leg ? `<path d="M90 170v16M110 170v16" stroke="${o.leg}" stroke-width="6" stroke-linecap="round"/><path d="M82 188h16M102 188h16" stroke="${o.leg}" stroke-width="5" stroke-linecap="round"/>` : ''}
+      <ellipse cx="100" cy="140" rx="32" ry="34" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="148" rx="20" ry="22" fill="${o.belly}"/>
+      ${crest}
+      <circle cx="100" cy="82" r="38" fill="${c}" ${SK}/>
+      ${o.patch ? `<ellipse cx="82" cy="84" rx="13" ry="11" fill="${o.patch}"/><ellipse cx="118" cy="84" rx="13" ry="11" fill="${o.patch}"/>` : ''}
+      ${eyes(82, 118, 84, 8, face, o.eye)}${o.fierce ? fierce(face) : ''}
+      ${o.beak ? beak + `<g transform="translate(0 14)">${face === 'happy' ? cheeks(70, 130, 96) : ''}</g>` : beak}
+    </svg>`;
+  }
+
+  // 네 발 짐승 (라이코, 앤테이, 스이쿤)
+  function beastSVG(o, face) {
+    const c = o.body;
+    const tail = {
+      bolt: `<path d="M126 162L176 150L160 132L194 116L168 112L184 84L148 112L162 120L136 140Z" fill="#fafafa" ${SK}/>`,
+      smoke: `<path d="M128 166C160 172 186 150 178 120C190 110 176 90 160 100C148 90 136 106 146 118C152 140 138 150 128 152Z" fill="${o.maneC}" ${SK}/>`,
+      ribbon: `<path d="M126 160C160 168 186 140 192 108C176 132 160 142 140 140Z" fill="#fafafa" ${SK}/><path d="M126 168C162 182 192 168 196 146C180 160 160 166 136 160Z" fill="#fafafa" ${SK}/>`,
+    }[o.tail];
+    const mane = {
+      cloud: `<g fill="${o.maneC}" ${SK}><circle cx="58" cy="64" r="22"/><circle cx="82" cy="44" r="24"/><circle cx="118" cy="44" r="24"/><circle cx="142" cy="64" r="22"/><circle cx="150" cy="96" r="18"/><circle cx="50" cy="96" r="18"/></g>`,
+      spiky: `<path d="${sunburst(100, 80, 70, 46, 11)}" fill="${o.maneC}" ${SK}/>`,
+      wave: `<path d="M56 74C52 24 128 10 150 50C178 60 192 100 174 132C170 100 150 84 126 80C150 70 110 50 96 56C80 60 68 66 56 74Z" fill="${o.maneC}" ${SK}/>`,
+    }[o.mane];
+    const marks = {
+      stripes: `<path d="M74 140l10 6 -10 6M126 140l-10 6 10 6M100 126l-6 8 6 8" stroke="${INK}" stroke-width="4" fill="none" stroke-linejoin="round"/>`,
+      diamonds: [[82, 142], [118, 142], [100, 160]].map(([x, y]) => `<path d="M${x} ${y - 7}l6 7 -6 7 -6 -7z" fill="#fafafa" stroke="${INK}" stroke-width="1.5"/>`).join(''),
+      rings: `<path d="M74 176h16M110 176h16" stroke="#4a4a52" stroke-width="6" stroke-linecap="round"/>`,
+    }[o.marks];
+    const crest = {
+      raikou: `<path d="M78 64L100 46L122 64L112 70L100 60L88 70Z" fill="${o.maneC}" ${SK}/>`,
+      entei: `<path d="M82 66L100 42L118 66L110 80H90Z" fill="#e8c050" ${SK}/><path d="M60 58L40 36L72 50Z" fill="#e8c050" ${SK}/>` + MIR(`<path d="M60 58L40 36L72 50Z" fill="#e8c050" ${SK}/>`),
+      suicune: `<path d="M92 62L100 22L108 62L100 70Z" fill="#fafafa" ${SK}/>`,
+    }[o.key];
+    return `<svg viewBox="0 0 200 200">
+      ${tail}${mane}
+      <ellipse cx="100" cy="152" rx="38" ry="30" fill="${c}" ${SK}/>
+      ${both(`<ellipse cx="62" cy="172" rx="12" ry="14" fill="${c}" ${SK}/>`)}
+      <ellipse cx="84" cy="184" rx="12" ry="9" fill="${c}" ${SK}/><ellipse cx="116" cy="184" rx="12" ry="9" fill="${c}" ${SK}/>
+      ${marks}
+      ${both(`<path d="M66 70L60 46L84 60Z" fill="${c}" ${SK}/>`)}
+      <ellipse cx="100" cy="92" rx="42" ry="36" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="110" rx="26" ry="15" fill="${o.mask}"/>
+      ${crest}
+      ${eyes(82, 118, 90, 8.5, face, o.eye)}${fierce(face)}
+      <path d="M96 104h8l-4 4z" fill="${INK}"/>
+      ${mouth(100, 114, face)}
+      ${o.fangs ? `<path d="M90 116l3 7 3 -7M104 116l3 7 3 -7" fill="#fff" stroke="${INK}" stroke-width="1.5"/>` : ''}
+    </svg>`;
+  }
+
+  // 라티아스, 라티오스
+  function latiSVG(o, face) {
+    const c = o.body;
+    return `<svg viewBox="0 0 200 200">
+      ${both(`<path d="M72 120L6 96L26 148L80 140Z" fill="${c}" ${SK}/><path d="M66 124L26 110L36 136Z" fill="#f4f4fa"/>`)}
+      <path d="M84 168L100 198L116 168Z" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="140" rx="34" ry="36" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="146" rx="22" ry="24" fill="#f4f4fa"/>
+      <path d="M86 116L114 116L100 138Z" fill="${o.tri}" ${SK}/>
+      ${both(`<ellipse cx="68" cy="146" rx="7" ry="12" transform="rotate(30 68 146)" fill="#f4f4fa" ${SK}/>`)}
+      ${both(`<path d="M70 64L52 30L88 56Z" fill="${c}" ${SK}/>`)}
+      <ellipse cx="100" cy="84" rx="40" ry="34" fill="#f4f4fa" ${SK}/>
+      <path d="M62 78Q100 50 138 78Q132 54 100 50Q68 54 62 78Z" fill="${c}"/>
+      ${eyes(84, 116, 88, 8.5, face, o.eye)}
+      ${cheeks(70, 130, 100)}
+      ${mouth(100, 106, face)}
+    </svg>`;
+  }
+
+  function kyogreSVG(face) {
+    const b = '#3a6fd8', r = '#e8483a';
+    const fin = `<path d="M54 110C18 118 6 160 18 178C40 170 58 152 70 132Z" fill="${b}" ${SK}/><path d="M12 172l8 -10 6 12M22 176l8 -10 6 10" fill="#f4f4fa" stroke="${INK}" stroke-width="2"/><path d="M50 122C34 130 24 146 22 160" stroke="${r}" stroke-width="4" fill="none"/>`;
+    return `<svg viewBox="0 0 200 200">
+      <path d="M100 150L66 194L100 180L134 194Z" fill="${b}" ${SK}/>
+      ${both(fin)}
+      <ellipse cx="100" cy="120" rx="60" ry="50" fill="${b}" ${SK}/>
+      <path d="M48 140Q100 184 152 140Q150 166 100 170Q50 166 48 140Z" fill="#f4f4fa"/>
+      <path d="M56 92Q74 72 92 86M144 92Q126 72 108 86M72 82Q100 70 128 82" stroke="${r}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="80" cy="110" r="13" fill="#ffe066" stroke="${INK}" stroke-width="2.5"/><circle cx="120" cy="110" r="13" fill="#ffe066" stroke="${INK}" stroke-width="2.5"/>
+      ${eyes(80, 120, 110, 8, face, '#2a2a5a')}
+      ${mouth(100, 134, face)}
+    </svg>`;
+  }
+  function groudonSVG(face) {
+    const r = '#d8403a', g = '#3a3a42';
+    return `<svg viewBox="0 0 200 200">
+      <path d="M128 160C168 172 192 150 190 118C178 140 156 146 136 140Z" fill="${r}" ${SK}/>
+      <ellipse cx="74" cy="180" rx="20" ry="14" fill="${r}" ${SK}/><ellipse cx="126" cy="180" rx="20" ry="14" fill="${r}" ${SK}/>
+      <path d="M60 190l4 -8 4 8M70 192l4 -8 4 8M122 192l4 -8 4 8M132 190l4 -8 4 8" fill="#fafafa" stroke="${INK}" stroke-width="1.5"/>
+      <ellipse cx="100" cy="140" rx="46" ry="40" fill="${r}" ${SK}/>
+      <path d="M72 128Q100 116 128 128M76 148Q100 138 124 148M84 166Q100 160 116 166" stroke="${g}" stroke-width="4" fill="none"/>
+      ${both(`<path d="M60 116L42 88L70 104Z" fill="#e8e4dc" ${SK}/><path d="M50 140L36 128L58 132Z" fill="#e8e4dc" ${SK}/><ellipse cx="58" cy="146" rx="9" ry="12" fill="${r}" ${SK}/>`)}
+      <ellipse cx="100" cy="82" rx="42" ry="34" fill="${r}" ${SK}/>
+      <path d="M64 80Q78 68 92 80M136 80Q122 68 108 80M86 56Q100 48 114 56" stroke="${g}" stroke-width="4" fill="none" stroke-linecap="round"/>
+      ${eyes(80, 120, 88, 8, face, '#ffd23a')}${fierce(face)}
+      ${mouth(100, 106, face)}
+    </svg>`;
+  }
+  function rayquazaSVG(face) {
+    const gr = '#3a9a5a', y = '#f6d23a';
+    const body = 'M100 116C156 112 166 160 126 170C86 182 48 164 66 138';
+    return `<svg viewBox="0 0 200 200">
+      ${tube(body, 26, gr)}
+      <path d="M66 138L44 128L54 152Z" fill="${gr}" ${SK}/>
+      ${[[146, 132], [134, 166], [92, 174], [62, 150]].map(([x, yy]) => `<circle cx="${x}" cy="${yy}" r="5" fill="${y}" stroke="${INK}" stroke-width="2"/>`).join('')}
+      ${both(`<path d="M80 120l-6 10 10 -2z" fill="#fafafa" stroke="${INK}" stroke-width="2"/>`)}
+      ${both(`<path d="M64 74L18 56L58 96Z" fill="${gr}" ${SK}/><path d="M52 72L26 62" stroke="${y}" stroke-width="4" stroke-linecap="round"/>`)}
+      ${both(`<path d="M82 52L76 22L96 48Z" fill="${gr}" ${SK}/>`)}
+      <ellipse cx="100" cy="82" rx="40" ry="34" fill="${gr}" ${SK}/>
+      ${both(`<path d="M66 96l14 4" stroke="${y}" stroke-width="4" stroke-linecap="round"/><path d="M84 106l10 2" stroke="#e8483a" stroke-width="3" stroke-linecap="round"/>`)}
+      ${eyes(82, 118, 84, 8, face, '#f6a83a')}${fierce(face)}
+      ${mouth(100, 106, face)}
+    </svg>`;
+  }
+  function mewSVG(face) {
+    const p = '#f6b6d2';
+    return `<svg viewBox="0 0 200 200">
+      ${tube('M116 160C170 172 192 120 164 78C152 60 166 44 178 54', 5, p)}
+      <ellipse cx="180" cy="54" rx="9" ry="7" fill="${p}" ${SK}/>
+      <ellipse cx="88" cy="182" rx="10" ry="12" fill="${p}" ${SK}/><ellipse cx="112" cy="182" rx="10" ry="12" fill="${p}" ${SK}/>
+      <ellipse cx="100" cy="152" rx="24" ry="24" fill="${p}" ${SK}/>
+      ${both(`<ellipse cx="78" cy="142" rx="6" ry="10" transform="rotate(30 78 142)" fill="${p}" ${SK}/>`)}
+      ${both(`<path d="M64 70L60 36L90 56Z" fill="${p}" ${SK}/>`)}
+      <circle cx="100" cy="90" r="44" fill="${p}" ${SK}/>
+      ${eyes(82, 118, 92, 11, face, '#3a78d8')}
+      ${cheeks(68, 132, 108)}
+      ${mouth(100, 114, face)}
+    </svg>`;
+  }
+  function mewtwoSVG(face) {
+    const g = '#e6e0ec', pu = '#9a6ab8';
+    return `<svg viewBox="0 0 200 200">
+      ${tube('M118 166C170 180 190 134 164 104', 11, pu)}
+      ${tube('M104 62C134 58 140 96 120 122', 6, g)}
+      <ellipse cx="86" cy="186" rx="12" ry="8" fill="${g}" ${SK}/><ellipse cx="114" cy="186" rx="12" ry="8" fill="${g}" ${SK}/>
+      <rect x="80" y="160" width="14" height="24" rx="6" fill="${g}" ${SK}/><rect x="106" y="160" width="14" height="24" rx="6" fill="${g}" ${SK}/>
+      <ellipse cx="100" cy="142" rx="30" ry="32" fill="${g}" ${SK}/>
+      <ellipse cx="100" cy="152" rx="18" ry="20" fill="${pu}"/>
+      ${both(`<path d="M72 126Q56 138 54 154" stroke="${INK}" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M72 126Q56 138 54 154" stroke="${g}" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="54" cy="158" r="7" fill="${g}" ${SK}/>`)}
+      ${both(`<path d="M76 62Q66 38 80 40Q90 48 88 62Z" fill="${g}" ${SK}/>`)}
+      <circle cx="100" cy="86" r="38" fill="${g}" ${SK}/>
+      ${eyes(84, 116, 88, 8, face, '#8a3ab8')}${fierce(face)}
+      ${mouth(100, 106, face)}
+    </svg>`;
+  }
+
+  const BIRDS = {
+    articuno: { key: 'articuno', body: '#8fc8f0', belly: '#c8e6fa', wing: 'round', wingC: '#6ab0e8', wingTip: '#3a80c8', tail: 'long', tailC: '#4a90d8', crest: 'tuft', crestC: '#3a70c0', beak: '#9a9aa8', leg: '#9a9aa8', eye: '#c83a4a' },
+    zapdos: { key: 'zapdos', body: '#ffd23a', belly: '#ffe680', wing: 'spiky', wingC: '#ffd23a', wingTip: '#ffb800', tail: 'spiky', tailC: '#ffd23a', crest: 'spikes', crestC: '#3b3326', beak: '#f6a03a', leg: '#f6a03a', eye: '#2a1d18', fierce: true },
+    moltres: { key: 'moltres', body: '#f6c050', belly: '#fbe0a0', wing: 'round', wingC: '#f6c050', wingTip: '#ff7a3c', wingFlame: true, tail: 'flame', crest: 'flame', beak: '#c8a060', leg: '#c8a060', eye: '#2a1d18', fierce: true },
+    hooh: { key: 'hooh', body: '#e84a3a', belly: '#f4f0e0', wing: 'round', wingC: '#e84a3a', wingTip: '#5ab85a', tail: 'fan', tailC: '#ffc83a', tailC2: '#5ab85a', crest: 'gold', crestC: '#ffc83a', beak: '#ffc83a', leg: '#ffc83a', eye: '#c83a3a' },
+    lugia: { key: 'lugia', body: '#f4f6fb', belly: '#a8b8e0', wing: 'hand', wingC: '#f4f6fb', wingTip: '#6a86c0', tail: 'spiky', tailC: '#f4f6fb', crest: 'fins', crestC: '#6a86c0', patch: '#6a86c0', eye: '#3a3a6a' },
+  };
+  const BEASTS = {
+    raikou: { key: 'raikou', body: '#f6c83a', mane: 'cloud', maneC: '#8a5ab8', mask: '#fafafa', tail: 'bolt', marks: 'stripes', eye: '#c83a3a', fangs: true },
+    entei: { key: 'entei', body: '#9a6038', mane: 'spiky', maneC: '#b8b0a8', mask: '#e8d8c0', tail: 'smoke', marks: 'rings', eye: '#c87a2a', fangs: true },
+    suicune: { key: 'suicune', body: '#7ad0e8', mane: 'wave', maneC: '#9a6ac8', mask: '#e8f8fc', tail: 'ribbon', marks: 'diamonds', eye: '#c83a6a' },
+  };
+  const LATIS = {
+    latias: { body: '#e8584a', tri: '#5a8ad8', eye: '#e8a03a' },
+    latios: { body: '#4a7ad8', tri: '#e8584a', eye: '#d83a4a' },
+  };
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
   for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
   for (const k in FOXES) DRAW[k] = (face) => foxSVG(FOXES[k], face);
+  for (const k in BIRDS) DRAW[k] = (face) => birdSVG(BIRDS[k], face);
+  for (const k in BEASTS) DRAW[k] = (face) => beastSVG(BEASTS[k], face);
+  for (const k in LATIS) DRAW[k] = (face) => latiSVG(LATIS[k], face);
+  Object.assign(DRAW, { kyogre: kyogreSVG, groudon: groudonSVG, rayquaza: rayquazaSVG, mew: mewSVG, mewtwo: mewtwoSVG });
   Object.assign(DRAW, { tyrogue: tyrogueSVG, hitmonlee: hitmonleeSVG, hitmonchan: hitmonchanSVG, hitmontop: hitmontopSVG });
   const NAMES = {
     egg: '포켓몬 알', cosmog: '코스모그', cosmoem: '코스모움', solgaleo: '솔가레오', lunala: '루나아라',
@@ -670,7 +875,11 @@
     tyrogue: '배루키', hitmonlee: '시라소몬', hitmonchan: '홍수몬', hitmontop: '카포에라',
     eevee: '이브이', vaporeon: '샤미드', jolteon: '쥬피썬더', flareon: '부스터', espeon: '에브이',
     umbreon: '블래키', leafeon: '리피아', glaceon: '글레이시아', sylveon: '님피아',
+    kyogre: '가이오가', groudon: '그란돈', rayquaza: '레쿠쟈', lugia: '루기아', hooh: '칠색조',
+    latias: '라티아스', latios: '라티오스', mew: '뮤', mewtwo: '뮤츠', raikou: '라이코', entei: '앤테이',
+    suicune: '스이쿤', articuno: '프리져', zapdos: '썬더', moltres: '파이어',
   };
+  const LEGENDS = ['kyogre', 'groudon', 'rayquaza', 'lugia', 'hooh', 'latias', 'latios', 'mew', 'mewtwo', 'raikou', 'entei', 'suicune', 'articuno', 'zapdos', 'moltres'];
   const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160 }; // 진화에 필요한 경험치
   // 다음 모습 (배열이면 그중 랜덤)
   const NEXT = {
@@ -684,13 +893,21 @@
     charmander: ['charmander', 'charmeleon', 'charizard', 'megax', 'megay'],
     tyrogue: ['tyrogue', 'hitmonlee', 'hitmonchan', 'hitmontop'],
     eevee: ['eevee', 'vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
+    legend: LEGENDS,
   };
-  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열' };
-  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊' };
-  const randomLine = () => { const k = Object.keys(LINES); return k[Math.floor(Math.random() * k.length)]; };
+  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', legend: '⭐ 전설의 포켓몬' };
+  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', legend: '⭐' };
+  const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
+  const randomLine = () => {
+    if (Math.random() < LEGEND_CHANCE) return 'legend';
+    const k = Object.keys(LINES).filter((l) => l !== 'legend');
+    return k[Math.floor(Math.random() * k.length)];
+  };
   const FINALS = Object.values(NEXT).filter(Array.isArray).flat();
   const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo',
-    vaporeon: 'water', jolteon: 'spark', flareon: 'fire', espeon: 'sun', umbreon: 'moon', leafeon: 'forest', glaceon: 'ice', sylveon: 'fairy' };
+    vaporeon: 'water', jolteon: 'spark', flareon: 'fire', espeon: 'sun', umbreon: 'moon', leafeon: 'forest', glaceon: 'ice', sylveon: 'fairy',
+    kyogre: 'water', groudon: 'fire', rayquaza: 'moon', lugia: 'water', hooh: 'sun', latias: 'fairy', latios: 'water',
+    mew: 'fairy', mewtwo: 'moon', raikou: 'spark', entei: 'fire', suicune: 'ice', articuno: 'ice', zapdos: 'spark', moltres: 'fire' };
   const CRY = {
     cosmog: '삐유~♪', cosmoem: '(따뜻해…)', solgaleo: '라오—!', lunala: '룰루—!',
     charmander: '파이~!', charmeleon: '리자—!', charizard: '크와앙!', megax: '크아아앙!!', megay: '크와아앙!!',
@@ -698,6 +915,8 @@
     eevee: '이브이~!', vaporeon: '샤미—!', jolteon: '쥬피—!', flareon: '부스—!', espeon: '에브—!',
     umbreon: '블래—!', leafeon: '리피—!', glaceon: '글레—!', sylveon: '님피~♡',
   };
+  for (const k of LEGENDS) CRY[k] = NAMES[k].slice(0, 2) + '—!!';
+  CRY.mew = '뮤~♪';
   const REVEAL = {
     solgaleo: '☀️ 태양의 빛이 쏟아진다…!', lunala: '🌙 달의 빛이 내려앉는다…!',
     megax: '💙 푸른 불꽃이 타오른다…!', megay: '🔥 거대한 불꽃이 휘몰아친다…!',
@@ -708,8 +927,10 @@
     leafeon: '🌿 이끼 바위의 힘이 감싼다…!', glaceon: '❄️ 얼음 바위의 힘이 감싼다…!', sylveon: '🎀 요정의 힘이 반짝인다…!',
   };
   const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥', hitmonlee: '🦵', hitmonchan: '🥊', hitmontop: '🌀',
-    vaporeon: '💧', jolteon: '⚡', flareon: '🔥', espeon: '☀️', umbreon: '🌙', leafeon: '🌿', glaceon: '❄️', sylveon: '🎀' };
-  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪' })[S.line];
+    vaporeon: '💧', jolteon: '⚡', flareon: '🔥', espeon: '☀️', umbreon: '🌙', leafeon: '🌿', glaceon: '❄️', sylveon: '🎀',
+    kyogre: '🌊', groudon: '🌋', rayquaza: '🐉', lugia: '🌀', hooh: '🌈', latias: '❤️', latios: '💙', mew: '💗', mewtwo: '🔮',
+    raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥' };
+  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', legend: '🍎' })[S.line];
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -719,7 +940,10 @@
   }
   const MOVES = { solgaleo: '메테오드라이브', lunala: '섀도레이', megax: '플레어드라이브', megay: '블래스트번', hitmonlee: '무릎차기', hitmonchan: '메가톤펀치', hitmontop: '트리플킥',
     vaporeon: '하이드로펌프', jolteon: '10만볼트', flareon: '화염방사', espeon: '사이코키네시스', umbreon: '악의파동',
-    leafeon: '리프블레이드', glaceon: '눈보라', sylveon: '문포스' };
+    leafeon: '리프블레이드', glaceon: '눈보라', sylveon: '문포스',
+    kyogre: '근원의파동', groudon: '단애의칼', rayquaza: '화룡점정', lugia: '에어로블라스트', hooh: '성스러운불꽃',
+    latias: '미스트볼', latios: '라스터퍼지', mew: '사이코키네시스', mewtwo: '사이코브레이크', raikou: '방전',
+    entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트' };
 
   // 이로치(색이 다른 포켓몬) 색 바꾸기: 원래 색 → 이로치 색
   const SHINY = {
@@ -745,6 +969,21 @@
     leafeon: { '#7bbf4a': '#d8a040', '#f2e2b0': '#fff6d8', '#e2cf96': '#f2deb0' },
     glaceon: { '#a6e2ec': '#c8d8f8', '#3aa8c0': '#6a7ad8' },
     sylveon: { '#f59ac0': '#7ab8f0', '#6ab8e8': '#f59ac0' },
+    kyogre: { '#3a6fd8': '#d84aa8', '#e8483a': '#f6d23a' },
+    groudon: { '#d8403a': '#d8b040', '#3a3a42': '#4a6a8a' },
+    rayquaza: { '#3a9a5a': '#3b3f4e', '#f6d23a': '#ffe066' },
+    lugia: { '#6a86c0': '#e85a7a', '#a8b8e0': '#f0a8b8' },
+    hooh: { '#e84a3a': '#f6d23a', '#5ab85a': '#c0c8d8' },
+    latias: { '#e8584a': '#f6c83a' },
+    latios: { '#4a7ad8': '#7ab85a' },
+    mew: { '#f6b6d2': '#a8d8f6' },
+    mewtwo: { '#9a6ab8': '#6ab85a' },
+    raikou: { '#f6c83a': '#f6e07a', '#8a5ab8': '#6a6aa8' },
+    entei: { '#9a6038': '#b8885a', '#b8b0a8': '#c8b878' },
+    suicune: { '#7ad0e8': '#9ae0f0', '#9a6ac8': '#d070c0' },
+    articuno: { '#8fc8f0': '#c8e8ff', '#6ab0e8': '#9ad8f8', '#4a90d8': '#7ac8f0', '#3a80c8': '#5ab0e8' },
+    zapdos: { '#ffd23a': '#f6b83a', '#ffe680': '#f6d080' },
+    moltres: { '#f6c050': '#f6a0a8', '#fbe0a0': '#fbd0d8' },
   };
   function petSVG(stage, face, warmth, shiny) {
     if (stage === 'egg') return eggSVG(warmth || 0, S.eggLook);
@@ -1024,7 +1263,7 @@
         if (onCool(id, 1500)) return;
         S.warmth = Math.min(100, S.warmth + 6);
         fx('🎵', 2); tune([523, 659, 784]);
-        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋', eevee: '알 사이로 보송보송한 털이 보여요 🦊' }[S.line]);
+        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋', eevee: '알 사이로 보송보송한 털이 보여요 🦊', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟' }[S.line]);
         break;
       case 'pat':
         if (onCool(id, 1200)) return;
@@ -1177,15 +1416,23 @@
     vibrate([80, 60, 160]);
     await wait(600);
     petInner.classList.remove('shake');
-    S.stage = S.line;
+    const legend = S.line === 'legend';
+    S.stage = legend ? LEGENDS[Math.floor(Math.random() * LEGENDS.length)] : S.line;
     S.shiny = Math.random() < 0.05; // 드물게 이로치 (5%)
     S.hunger = 70; S.mood = 80; S.clean = 100; S.energy = 100; S.exp = 0;
-    S.dex[S.line] = true;
+    S.dex[S.stage] = true;
     S.eggs[S.eggLook] = true;
+    if (legend) S.raised++;
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046], 0.12);
-    await story(`알에서 ${josa(NAMES[S.line], '이', '가')} 태어났다! ${LINE_ICON[S.line]}`, 2400);
+    if (legend) {
+      fx('🌟', 6); tune([392, 523, 659, 784, 1046, 1318], 0.14); vibrate([100, 60, 100, 60, 300]);
+      await story('알이 눈부시게 빛난다…!!', 2000);
+      await story(`전설의 포켓몬 ${josa(NAMES[S.stage], '이', '가')} 태어났다! ${ICON[S.stage]}`, 2800);
+    } else {
+      await story(`알에서 ${josa(NAMES[S.line], '이', '가')} 태어났다! ${LINE_ICON[S.line]}`, 2400);
+    }
     if (S.shiny) {
       fx('✨', 6); tune([1318, 1568, 2093, 1568, 2093], 0.08); vibrate([40, 40, 40]);
       await story('어라…? 색깔이 특이해…! ✨ 이로치 포켓몬이다!', 2800);
@@ -1194,6 +1441,7 @@
     busy = false;
     save(); render();
     say(CRY[S.stage]);
+    if (legend) setTimeout(showFinal, 600);
   }
 
   async function evolve() {
@@ -1256,9 +1504,9 @@
       leafeon: '이브이는 이끼 바위의 힘으로 <b>리피아</b>로 진화했어요.',
       glaceon: '이브이는 얼음 바위의 힘으로 <b>글레이시아</b>로 진화했어요.',
       sylveon: '이브이는 요정의 힘으로 <b>님피아</b>로 진화했어요.',
-    }[S.stage];
+    }[S.stage] || `1% 확률로만 만날 수 있는 전설의 포켓몬 <b>${NAMES[S.stage]}</b>${josa(NAMES[S.stage], '이', '가').slice(-1)} 알에서 태어났어요!`;
     openModal(`
-      <h2>${ICON[S.stage]} ${NAMES[S.stage]} 탄생!</h2>
+      <h2>${ICON[S.stage]} ${S.line === 'legend' ? '전설의 ' : ''}${NAMES[S.stage]} 탄생!</h2>
       <div style="height:150px">${petSVG(S.stage, 'happy', 0, S.shiny)}</div>
       <p>${how}</p>
       <p>${missing.length ? `아직 못 만난 최종 진화: <b>${missing.length}마리</b>${missing.length <= 4 ? ` (${missing.join(', ')})` : ''}<br>새 알을 받아서 도전해 보세요!` : '최종 진화를 모두 만났어요! 🎉'}</p>
@@ -1294,7 +1542,8 @@
       코스모그 → 코스모움 → <b>솔가레오</b> / <b>루나아라</b><br>
       파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>
       배루키 → <b>시라소몬</b> / <b>홍수몬</b> / <b>카포에라</b><br>
-      이브이 → 8가지 브이즈 중 하나!<br>마지막 진화는 그중 하나가 랜덤이에요!</p>
+      이브이 → 8가지 브이즈 중 하나!<br>
+      ⭐ 아주 드물게(1%) 전설의 포켓몬이 태어나요!<br>마지막 진화는 그중 하나가 랜덤이에요!</p>
       <div class="row">
         ${final ? '<button class="primary" id="newEgg">🥚 새 알 받기</button>' : ''}
         <button data-close>닫기</button>
