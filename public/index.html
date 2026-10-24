@@ -343,13 +343,45 @@
        <path d="M138 104l7 8 -7 8 -7 -8z" fill="#47c97a" stroke="#7a4a00" stroke-width="2"/>
        ${star4(76, 60, 9, '#fff')}${star4(132, 150, 7, '#fff')}${star4(118, 52, 4, '#fff')}` },
   };
+  // 무늬 알: 모양은 정해져 있고 색깔은 알마다 랜덤 (hue = 0~359)
+  const pal = (h) => ({
+    g: [`hsl(${h} 90% 96%)`, `hsl(${h} 75% 84%)`, `hsl(${h} 60% 68%)`],
+    a: `hsl(${(h + 150) % 360} 70% 58%)`, b: `hsl(${(h + 40) % 360} 85% 64%)`,
+    w: '#ffffff', crack: `hsl(${h} 50% 32%)`,
+  });
+  const PATTERNS = {
+    stripe: { name: '줄무늬 알', art: (c) => [52, 92, 132, 166].map((y, i) =>
+      `<rect x="20" y="${y}" width="160" height="14" fill="${i % 2 ? c.b : c.a}"/>`).join('') },
+    zigzag: { name: '지그재그 알', art: (c) => [70, 116, 156].map((y, i) =>
+      `<path d="M20 ${y}l16 -12 16 12 16 -12 16 12 16 -12 16 12 16 -12 16 12 16 -12" stroke="${i % 2 ? c.b : c.a}" stroke-width="9" fill="none" stroke-linejoin="round"/>`).join('') },
+    dots: { name: '땡땡이 알', art: (c) => [0, 1, 2, 3, 4].map((r) => [0, 1, 2, 3].map((q) =>
+      `<circle cx="${52 + q * 32 + (r % 2) * 16}" cy="${48 + r * 30}" r="7" fill="${(r + q) % 2 ? c.a : c.b}"/>`).join('')).join('') },
+    spots: { name: '얼룩 알', art: (c) =>
+      [[70, 60, 14, 'a'], [128, 78, 18, 'b'], [86, 116, 11, 'b'], [62, 150, 16, 'a'], [130, 140, 12, 'a'], [104, 170, 9, 'b']]
+        .map(([x, y, r, k]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.8}" fill="${c[k]}" transform="rotate(${x - y} ${x} ${y})"/>`).join('') },
+    wave: { name: '물결 알', art: (c) => [68, 108, 148].map((y, i) =>
+      `<path d="M10 ${y}q20 -14 40 0t40 0t40 0t40 0t40 0" stroke="${i % 2 ? c.b : c.a}" stroke-width="8" fill="none"/>`).join('') },
+    check: { name: '다이아 알', art: (c) => [0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((q) =>
+      `<path d="M${46 + q * 36 + (r % 2) * 18} ${46 + r * 38}l14 18 -14 18 -14 -18z" fill="${(r + q) % 2 ? c.a : c.b}" opacity=".85"/>`).join('')).join('') },
+    twinkle: { name: '반짝이 알', art: (c) =>
+      [[64, 56, 8], [120, 66, 6], [96, 96, 10], [58, 124, 6], [140, 112, 8], [80, 158, 7], [126, 158, 5], [100, 40, 4]]
+        .map(([x, y, r], i) => star4(x, y, r, i % 2 ? c.a : c.b)).join('') },
+    swirl: { name: '소용돌이 알', art: (c) =>
+      `<path d="M100 108m-6 0a6 6 0 1 1 12 0a14 14 0 1 1 -28 0a24 24 0 1 1 48 0a36 36 0 1 1 -72 0a50 50 0 1 1 100 0" stroke="${c.a}" stroke-width="7" fill="none"/>` },
+    heartdot: { name: '하트무늬 알', art: (c) =>
+      [[66, 60, 0.8], [120, 70, 1], [92, 104, 0.7], [62, 136, 1], [136, 128, 0.8], [100, 166, 0.9]]
+        .map(([x, y, k], i) => heart(x, y, k, i % 2 ? c.a : c.b)).join('') },
+  };
+  for (const k in PATTERNS) EGGS[k] = { ...PATTERNS[k], proc: true };
+
   function pickEgg() {
-    if (Math.random() < 0.06) return 'gold'; // 아주 가끔 황금 알
-    const k = Object.keys(EGGS).filter((e) => !EGGS[e].rare);
-    return k[Math.floor(Math.random() * k.length)];
+    if (Math.random() < 0.06) return 'gold'; // 아주 가끔 황금 알 (효과 그대로)
+    const pool = Math.random() < 0.5 ? Object.keys(PATTERNS) : Object.keys(EGGS).filter((e) => !EGGS[e].rare && !EGGS[e].proc);
+    return pool[Math.floor(Math.random() * pool.length)];
   }
-  function eggSVG(warmth, look, uid = 'p') {
-    const e = EGGS[look] || EGGS.star;
+  function eggSVG(warmth, look, uid = 'p', hue = 0) {
+    let e = EGGS[look] || EGGS.star;
+    if (e.proc) { const c = pal(hue); e = { ...e, g: c.g, crack: c.crack, art: () => PATTERNS[look].art(c) }; }
     const id = `eg${look}${uid}`;
     const crack = warmth >= 60
       ? `<path d="M62 92l12 10 8-12 10 14 10-10 12 12 8-10" stroke="${e.crack}" stroke-width="3.5" fill="none" stroke-linejoin="round"/>` : '';
@@ -988,7 +1020,7 @@
     moltres: { '#f6c050': '#f6a0a8', '#fbe0a0': '#fbd0d8' },
   };
   function petSVG(stage, face, warmth, shiny) {
-    if (stage === 'egg') return eggSVG(warmth || 0, S.eggLook);
+    if (stage === 'egg') return eggSVG(warmth || 0, S.eggLook, 'p', S.eggHue);
     let svg = DRAW[stage](face);
     if (shiny && SHINY[stage]) {
       const map = SHINY[stage];
@@ -1005,6 +1037,7 @@
       stage: 'egg', nick: '', warmth: 0, shiny: false,
       line: randomLine(), // 알에서 누가 나올지 (랜덤)
       eggLook: pickEgg(), // 알 무늬 (랜덤)
+      eggHue: Math.floor(Math.random() * 360), // 무늬 알 색깔 (랜덤)
       eggs: (prev && prev.eggs) || {},
       hunger: 80, mood: 80, clean: 100, energy: 100,
       exp: 0, bond: 0, sleeping: false, messes: 0, messAcc: 0,
@@ -1017,6 +1050,7 @@
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
   if (!S || !S.stage) S = fresh();
   if (!EGGS[S.eggLook]) S.eggLook = pickEgg();
+  if (typeof S.eggHue !== 'number') S.eggHue = Math.floor(Math.random() * 360);
   if (!S.eggs) S.eggs = {};
   if (!S.line) S.line = S.stage === 'egg' ? randomLine() : Object.keys(LINES).find((k) => LINES[k].includes(S.stage));
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -1075,7 +1109,7 @@
   function drawPet(force) {
     if (petInner.classList.contains('white')) return; // 진화 연출 중
     const f = face();
-    const key = S.stage + f + (S.stage === 'egg' ? Math.floor(S.warmth / 25) : '');
+    const key = S.stage + f + (S.stage === 'egg' ? Math.floor(S.warmth / 25) + S.eggLook + S.eggHue : '');
     if (key === lastKey && !force) return;
     lastKey = key;
     petInner.innerHTML = petSVG(S.stage, f, S.warmth, S.shiny);
@@ -1540,9 +1574,6 @@
     openModal(`
       <h2>📖 도감</h2>
       ${cells}
-      <div class="dexTitle">🥚 부화시킨 알 (${Object.keys(S.eggs).length}/${Object.keys(EGGS).length})</div>
-      <div class="dex" style="grid-template-columns:repeat(5,1fr)">${Object.keys(EGGS).map((k) =>
-        `<div class="${S.eggs[k] ? '' : 'unknown'}">${eggSVG(0, k, 'd')}${S.eggs[k] ? EGGS[k].name : '???'}</div>`).join('')}</div>
       <p>최종 진화까지 키운 친구: <b>${S.raised}마리</b></p>
       <p>🥚 알에서 누가 태어날지, 무엇으로 진화할지는 모두 랜덤이에요!</p>
       <div class="row">
