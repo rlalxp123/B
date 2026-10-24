@@ -895,7 +895,7 @@
     eevee: ['eevee', 'vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
     legend: LEGENDS,
   };
-  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', legend: '⭐ 전설의 포켓몬' };
+  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
   const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', legend: '⭐' };
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
   const randomLine = () => {
@@ -1543,7 +1543,7 @@
       파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>
       배루키 → <b>시라소몬</b> / <b>홍수몬</b> / <b>카포에라</b><br>
       이브이 → 8가지 브이즈 중 하나!<br>
-      ⭐ 아주 드물게(1%) 전설의 포켓몬이 태어나요!<br>마지막 진화는 그중 하나가 랜덤이에요!</p>
+      마지막 진화는 그중 하나가 랜덤이에요!</p>
       <div class="row">
         ${final ? '<button class="primary" id="newEgg">🥚 새 알 받기</button>' : ''}
         <button data-close>닫기</button>
