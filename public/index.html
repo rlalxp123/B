@@ -895,6 +895,7 @@
     eevee: ['eevee', 'vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
     legend: LEGENDS,
   };
+  // (도감에서는 쓰지 않아요)
   const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
   const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', legend: '⭐' };
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
@@ -1528,8 +1529,11 @@
       const seen = S.dex[k];
       return `<div class="${seen ? '' : 'unknown'}">${petSVG(k, 'normal')}${seen ? NAMES[k] : '???'}</div>`;
     };
-    const cells = Object.keys(LINES).map((k) => `<div class="dexTitle">${LINE_NAMES[k]}</div>
-      <div class="dex" style="grid-template-columns:repeat(${Math.min(5, LINES[k].length)},1fr)">${LINES[k].map(cell).join('')}</div>`).join('');
+    // 계열 구분 없이 한 칸에 모두 (발견한 포켓몬만 이름이 보여요)
+    const all = Object.values(LINES).flat();
+    const found = all.filter((k) => S.dex[k]).length;
+    const cells = `<div class="dexTitle">🐾 발견한 포켓몬 (${found}/${all.length})</div>
+      <div class="dex" style="grid-template-columns:repeat(5,1fr)">${all.map(cell).join('')}</div>`;
     const final = !NEED[S.stage] && S.stage !== 'egg';
     openModal(`
       <h2>📖 도감</h2>
@@ -1538,12 +1542,7 @@
       <div class="dex" style="grid-template-columns:repeat(5,1fr)">${Object.keys(EGGS).map((k) =>
         `<div class="${S.eggs[k] ? '' : 'unknown'}">${eggSVG(0, k, 'd')}${S.eggs[k] ? EGGS[k].name : '???'}</div>`).join('')}</div>
       <p>최종 진화까지 키운 친구: <b>${S.raised}마리</b></p>
-      <p>🥚 알에서 <b>코스모그</b>, <b>파이리</b>, <b>배루키</b>, <b>이브이</b> 중 하나가 랜덤으로 태어나요.<br>
-      코스모그 → 코스모움 → <b>솔가레오</b> / <b>루나아라</b><br>
-      파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>
-      배루키 → <b>시라소몬</b> / <b>홍수몬</b> / <b>카포에라</b><br>
-      이브이 → 8가지 브이즈 중 하나!<br>
-      마지막 진화는 그중 하나가 랜덤이에요!</p>
+      <p>🥚 알에서 누가 태어날지, 무엇으로 진화할지는 모두 랜덤이에요!</p>
       <div class="row">
         ${final ? '<button class="primary" id="newEgg">🥚 새 알 받기</button>' : ''}
         <button data-close>닫기</button>
