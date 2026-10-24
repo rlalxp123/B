@@ -138,7 +138,7 @@
   // name, Korean particles (을/를, 이/가), seconds per step, hit points
   const FOES = {
     geodude: { name: '꼬마돌', eul: '을', i: '이', step: 0.8, hp: 1 },
-    grookey: { name: '딱구리', eul: '를', i: '가', step: 0.42, hp: 1 },
+    golem: { name: '딱구리', eul: '를', i: '가', step: 0.45, hp: 2, roll: true },
     onix: { name: '롱스톤', eul: '을', i: '이', step: 0.62, hp: 2, passRocks: true },
     arceus: { name: '아르세우스', eul: '를', i: '가', step: 0.55, hp: Infinity, chase: true },
   };
@@ -242,7 +242,7 @@
 
   function makeEnemy(type, x, y) {
     const e = { type, x, y, rx: x, ry: y, px: x, py: y, t: Math.random() * 0.5, stun: 0, flash: 0, face: -1, hp: FOES[type].hp };
-    if (type === 'onix') e.body = [0, 1, 2].map(() => ({ x, y, rx: x, ry: y }));
+    if (type === 'onix') e.body = [0, 1, 2, 3].map(() => ({ x, y, rx: x, ry: y }));
     return e;
   }
 
@@ -282,10 +282,10 @@
     }
 
     // enemies spawn far from the start
-    const types = ['geodude', 'grookey'];
+    const types = ['geodude', 'golem'];
     if (G.level >= 2) types.push('onix');
     if (G.level >= 3) types.push('arceus');
-    const pool = ['geodude', 'grookey', 'onix'];
+    const pool = ['geodude', 'golem', 'onix'];
     for (let i = 0; i < Math.min(G.level - 3, 3); i++) types.push(pool[rand(pool.length)]);
     const far = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -297,9 +297,9 @@
     });
 
     G.total = G.orbs.size;
-    // enough PP for every rock on the shortest route, plus two spare
+    // enough PP for every rock on the shortest route, plus three spare
     const blocking = findPath(G.player, G.home).filter(([x, y]) => G.rocks.has(y * n + x)).length;
-    G.pp = blocking + 2;
+    G.pp = blocking + 3;
     G.hp = 3; G.invuln = 0;
     G.got = 0; G.broken = 0; G.defeated = 0; G.hints = 3; G.hintUntil = 0;
     G.t0 = 0; G.elapsed = 0; G.steps = 0;
@@ -430,6 +430,11 @@
     if (F.chase) {
       const path = bfs(e, G.player, true);
       if (path && path.length > 1 && path.length <= 12) mv = [path[1][0] - e.x, path[1][1] - e.y];
+    }
+    // Golem keeps rolling straight while it can
+    if (!mv && F.roll && Math.random() < 0.85) {
+      const sx = e.x - e.px, sy = e.y - e.py;
+      if ((sx || sy) && open.some(([dx, dy]) => dx === sx && dy === sy)) mv = [sx, sy];
     }
     if (!mv) {
       let fwd = open.filter(([dx, dy]) => !(e.x + dx === e.px && e.y + dy === e.py));
@@ -597,7 +602,7 @@
     G.state = 'menu';
     if (!G.maze) {
       G.maze = makeMaze(7, 7); G.player = newPlayer(); G.home = { x: 6, y: 6 };
-      G.enemies = [makeEnemy('geodude', 3, 5), makeEnemy('grookey', 5, 2)];
+      G.enemies = [makeEnemy('geodude', 3, 5), makeEnemy('golem', 5, 2)];
     }
     showOverlay(`
       <h2>🌀 뮤츠 동굴찾아가기</h2>
@@ -606,7 +611,7 @@
       <b>구슬 🔮</b>을 모으면 PP가 1 늘고 별도 더 받아요.</p>
       <div class="foes">
         <span>🪨 꼬마돌: 느릿느릿</span>
-        <span>🐒 딱구리: 재빨라요</span>
+        <span>⚫ 딱구리: 데굴데굴 직진 · 2번 맞혀야 해요</span>
         <span>🐍 롱스톤: 바위 통과 · 2번 맞혀야 해요</span>
         <span>✨ 아르세우스: 쫓아와요 · 기술로 잠깐 멈춰요</span>
       </div>
@@ -898,12 +903,43 @@
     ctx.restore();
   }
 
+  // --- sprite helpers ---
+  function rockPoly(cx, cy, r, n, seed, sq) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const rr = r * (0.88 + 0.12 * Math.sin(seed + i * 2.1));
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * (sq || 1);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.closePath();
+  }
+  function limb(x0, y0, cx, cy, x1, y1, w, color, K) {
+    const path = () => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, x1, y1); };
+    path(); ctx.strokeStyle = K; ctx.lineWidth = w * 1.45; ctx.stroke();
+    path(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+    ctx.strokeStyle = K;
+  }
+  function claws(x, y, ang, len, K) {
+    ctx.fillStyle = '#f7f4ee';
+    ctx.lineWidth = Math.max(0.8, len * 0.15);
+    for (let i = -1; i <= 1; i++) {
+      const a = ang + i * 0.5;
+      const bx = x + Math.cos(a + Math.PI / 2) * len * 0.35 * i * 0.6, by = y + Math.sin(a + Math.PI / 2) * len * 0.35 * i * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(a + 1.3) * len * 0.25, by + Math.sin(a + 1.3) * len * 0.25);
+      ctx.lineTo(bx + Math.cos(a) * len, by + Math.sin(a) * len);
+      ctx.lineTo(bx + Math.cos(a - 1.3) * len * 0.25, by + Math.sin(a - 1.3) * len * 0.25);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+
   function drawMewtwo(cx, cy, s, face, now) {
     const float = Math.sin(now / 450) * s * 0.03;
     const lift = G.state === 'win' ? Math.abs(Math.sin(now / 170)) * s * 0.18 + float : float;
     const shake = G.bump > 0 ? Math.sin(G.bump * 40) * s * 0.06 * G.bump : 0;
-    const L = '#e4ddef', P = '#9a6fcf', K = '#2d2340';
-    const lw = Math.max(1.2, s * 0.03);
+    const L = '#ece7f3', P = '#a97ea6', K = '#2d2340';
+    const lw = Math.max(1.2, s * 0.028);
     ctx.save();
     if (now < G.invuln && Math.floor(now / 100) % 2) ctx.globalAlpha = 0.35;
     if (G.state === 'over') ctx.globalAlpha = 0.5;
@@ -919,198 +955,217 @@
     }
     shadow(s, lift);
 
-    // thick purple tail
+    // long mauve tail sweeping behind and curling up
     const sway = Math.sin(now / 500) * s * 0.04;
-    const tail = () => {
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.08, s * 0.25);
-      ctx.bezierCurveTo(-s * 0.5, s * 0.42, -s * 0.58, s * 0.05, -s * 0.42 + sway, -s * 0.14);
-    };
-    tail(); ctx.lineWidth = Math.max(4, s * 0.13); ctx.stroke();
-    tail(); ctx.lineWidth = Math.max(2.5, s * 0.09); ctx.strokeStyle = P; ctx.stroke();
-    ctx.strokeStyle = K; ctx.lineWidth = lw;
+    limb(-s * 0.05, s * 0.18, -s * 0.48, s * 0.38, -s * 0.4 + sway, -s * 0.06, Math.max(3, s * 0.09), P, K);
+    ctx.lineWidth = lw;
+
+    // back arm hanging down with round fingertips
+    limb(-s * 0.07, -s * 0.01, -s * 0.16, s * 0.06, -s * 0.15, s * 0.17, Math.max(2, s * 0.055), L, K);
+    ctx.lineWidth = lw; ctx.fillStyle = L;
+    [[-0.18, 0.21], [-0.14, 0.22], [-0.11, 0.2]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(s * x, s * y, s * 0.022, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+
+    // mauve lower belly, then thighs and feet
     ctx.fillStyle = P;
-    ctx.beginPath(); ctx.ellipse(-s * 0.42 + sway, -s * 0.17, s * 0.07, s * 0.08, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // legs
+    ctx.beginPath(); ctx.ellipse(0, s * 0.19, s * 0.14, s * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = L;
-    ctx.beginPath(); ctx.ellipse(-s * 0.09, s * 0.35, s * 0.07, s * 0.08, 0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.35, s * 0.07, s * 0.08, -0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-s * 0.08, s * 0.27, s * 0.075, s * 0.11, 0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.09, s * 0.27, s * 0.075, s * 0.11, -0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-s * 0.11, s * 0.39, s * 0.07, s * 0.035, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.13, s * 0.39, s * 0.07, s * 0.035, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // body with purple belly
-    ctx.beginPath(); ctx.ellipse(0, s * 0.17, s * 0.17, s * 0.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(0, s * 0.17, s * 0.17, s * 0.2, 0, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = P;
-    ctx.beginPath(); ctx.ellipse(s * 0.02, s * 0.3, s * 0.12, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
+    // slim torso with chest lines
+    ctx.beginPath(); ctx.ellipse(0, s * 0.03, s * 0.1, s * 0.15, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = Math.max(0.8, s * 0.015);
+    ctx.beginPath(); ctx.moveTo(-s * 0.04, -s * 0.04); ctx.quadraticCurveTo(0, -s * 0.01, s * 0.05, -s * 0.04);
+    ctx.moveTo(0, -s * 0.01); ctx.lineTo(0, s * 0.08); ctx.stroke();
+    ctx.lineWidth = lw;
 
-    // neck tube
-    const tube = () => {
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.12, -s * 0.1);
-      ctx.quadraticCurveTo(-s * 0.24, -s * 0.0, -s * 0.12, s * 0.05);
-    };
-    tube(); ctx.lineWidth = Math.max(3, s * 0.08); ctx.stroke();
-    tube(); ctx.lineWidth = Math.max(2, s * 0.045); ctx.strokeStyle = L; ctx.stroke();
-    ctx.strokeStyle = K; ctx.lineWidth = lw;
+    // tube from the back of the head to the spine
+    limb(-s * 0.06, -s * 0.21, -s * 0.2, -s * 0.13, -s * 0.07, -s * 0.03, Math.max(1.5, s * 0.04), L, K);
+    ctx.lineWidth = lw;
 
-    // arm reaching forward
-    const reach = casting ? s * 0.08 : 0;
+    // blunt horns, head and jaw
     ctx.fillStyle = L;
-    ctx.beginPath(); ctx.ellipse(s * 0.17 + reach * 0.5, s * 0.12, s * 0.09 + reach * 0.5, s * 0.04, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(s * 0.27 + reach, s * 0.1, s * 0.04, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // horns
-    const horn = (x, rot) => {
-      ctx.save();
-      ctx.translate(x, -s * 0.3);
-      ctx.rotate(rot);
-      ctx.beginPath(); ctx.ellipse(0, -s * 0.05, s * 0.045, s * 0.085, 0, 0, Math.PI * 2);
-      ctx.fillStyle = L; ctx.fill(); ctx.stroke();
+    for (const [x, rot] of [[-s * 0.04, -0.35], [s * 0.09, 0.35]]) {
+      ctx.save(); ctx.translate(x, -s * 0.31); ctx.rotate(rot);
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.03, s * 0.03, s * 0.065, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.restore();
-    };
-    horn(-s * 0.1, -0.35);
-    horn(s * 0.12, 0.35);
+    }
+    ctx.beginPath(); ctx.ellipse(s * 0.03, -s * 0.23, s * 0.12, s * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.08, -s * 0.17, s * 0.06, s * 0.04, -0.2, 0, Math.PI); ctx.fill(); ctx.stroke();
 
-    // head
-    ctx.fillStyle = L;
-    ctx.beginPath(); ctx.ellipse(s * 0.01, -s * 0.16, s * 0.2, s * 0.17, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    const eye = (ex, tilt) => {
-      ctx.save();
-      ctx.translate(ex, -s * 0.16);
-      ctx.rotate(tilt);
-      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.055, s * 0.035, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff'; ctx.fill();
-      ctx.lineWidth = Math.max(1, s * 0.022); ctx.stroke();
-      ctx.fillStyle = '#7b2fbf';
-      ctx.beginPath(); ctx.arc(s * 0.018, 0, s * 0.027, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = K;
-      ctx.beginPath(); ctx.arc(s * 0.02, 0, s * 0.013, 0, Math.PI * 2); ctx.fill();
+    // narrow purple eyes with stern brows
+    for (const [ex, tilt] of [[-s * 0.005, 0.2], [s * 0.095, -0.2]]) {
+      ctx.save(); ctx.translate(ex, -s * 0.23); ctx.rotate(tilt);
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.035, s * 0.022, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = Math.max(0.8, s * 0.018); ctx.stroke();
+      ctx.fillStyle = '#6b2fa6'; ctx.beginPath(); ctx.arc(s * 0.012, 0, s * 0.016, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
-    };
-    eye(-s * 0.05, 0.22);
-    eye(s * 0.11, -0.22);
-    ctx.lineWidth = Math.max(1, s * 0.025);
+    }
+    ctx.lineWidth = Math.max(1, s * 0.022);
     ctx.beginPath();
-    ctx.moveTo(-s * 0.1, -s * 0.215); ctx.lineTo(-s * 0.005, -s * 0.195);
-    ctx.moveTo(s * 0.06, -s * 0.195); ctx.lineTo(s * 0.16, -s * 0.215);
+    ctx.moveTo(-s * 0.04, -s * 0.265); ctx.lineTo(s * 0.03, -s * 0.25);
+    ctx.moveTo(s * 0.065, -s * 0.25); ctx.lineTo(s * 0.13, -s * 0.265);
     ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(s * 0.03, -s * 0.07); ctx.lineTo(s * 0.08, -s * 0.075); ctx.stroke();
+    ctx.lineWidth = lw;
+
+    // front arm stretched out, palm open with three round fingertips
+    const reach = casting ? s * 0.06 : 0;
+    limb(s * 0.05, -s * 0.03, s * 0.15, -s * 0.02, s * 0.25 + reach, -s * 0.07, Math.max(2, s * 0.055), L, K);
+    ctx.lineWidth = lw; ctx.fillStyle = L;
+    const hx = s * 0.28 + reach, hy = -s * 0.075;
+    ctx.beginPath(); ctx.arc(hx, hy, s * 0.035, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    for (const a of [-0.9, -0.1, 0.7]) {
+      const fx = hx + Math.cos(a) * s * 0.07, fy = hy + Math.sin(a) * s * 0.07;
+      ctx.beginPath(); ctx.moveTo(hx + Math.cos(a) * s * 0.03, hy + Math.sin(a) * s * 0.03); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.beginPath(); ctx.arc(fx, fy, s * 0.024, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
     ctx.restore();
   }
 
   // --- enemy sprites (all drawn facing right, flipped by caller) ---
   function drawGeodude(s, now, K) {
-    const flex = Math.sin(now / 200) * s * 0.03;
+    const flex = Math.sin(now / 200) * s * 0.025;
     const lift = s * 0.08 + Math.sin(now / 300) * s * 0.03;
     shadow(s, lift);
     ctx.translate(0, -lift);
-    const R = '#a39b90';
-    ctx.fillStyle = R;
-    // arms with fists raised
+    const R = '#aca79e', D = '#7d786f';
+    // bent muscular arms with big raised fists
     for (const side of [-1, 1]) {
-      ctx.beginPath(); ctx.ellipse(side * s * 0.3, -s * 0.02, s * 0.12, s * 0.065, side * -0.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(side * s * 0.4, -s * 0.16 - flex * side, s * 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(side * s * 0.36, -s * 0.2 - flex * side); ctx.lineTo(side * s * 0.44, -s * 0.18 - flex * side); ctx.stroke();
+      const fy = -s * 0.2 - flex * side, fx = side * s * 0.42;
+      limb(side * s * 0.18, s * 0.07, side * s * 0.46, s * 0.18, fx, fy + s * 0.06, Math.max(2.5, s * 0.075), R, K);
+      ctx.lineWidth = Math.max(1.2, s * 0.028);
+      rockPoly(fx, fy, s * 0.1, 7, side * 3, 1.05);
+      ctx.fillStyle = R; ctx.fill(); ctx.stroke();
+      ctx.lineWidth = Math.max(0.8, s * 0.016);
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath(); ctx.arc(fx + k * s * 0.045, fy - s * 0.045, s * 0.024, Math.PI, Math.PI * 2); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(fx - s * 0.07, fy + s * 0.02); ctx.lineTo(fx + s * 0.06, fy + s * 0.02); ctx.stroke();
     }
-    // round rocky body
-    ctx.beginPath(); ctx.arc(0, s * 0.05, s * 0.27, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(70,60,50,0.3)';
-    [[-0.12, 0.2], [0.14, 0.18], [-0.16, -0.08], [0.06, 0.26]].forEach(([x, y]) => {
-      ctx.beginPath(); ctx.arc(s * x, s * y, s * 0.025, 0, Math.PI * 2); ctx.fill();
-    });
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.beginPath(); ctx.ellipse(-s * 0.08, -s * 0.1, s * 0.1, s * 0.05, -0.4, 0, Math.PI * 2); ctx.fill();
-    // angry face
-    ctx.fillStyle = K;
-    ctx.beginPath(); ctx.ellipse(-s * 0.06, s * 0.03, s * 0.03, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.03, s * 0.03, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = Math.max(1.5, s * 0.04);
+    // the rock head itself
+    ctx.lineWidth = Math.max(1.2, s * 0.03);
+    rockPoly(0, s * 0.03, s * 0.25, 9, 1.7, 0.95);
+    ctx.fillStyle = R; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(90, 85, 78, 0.45)';
+    ctx.beginPath(); ctx.ellipse(-s * 0.06, s * 0.22, s * 0.3, s * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = D; ctx.lineWidth = Math.max(0.8, s * 0.018);
     ctx.beginPath();
-    ctx.moveTo(-s * 0.13, -s * 0.05); ctx.lineTo(-s * 0.01, -s * 0.0);
-    ctx.moveTo(s * 0.17, -s * 0.05); ctx.lineTo(s * 0.05, -s * 0.0);
+    ctx.moveTo(-s * 0.16, -s * 0.12); ctx.lineTo(-s * 0.05, -s * 0.18); ctx.lineTo(s * 0.08, -s * 0.15);
+    ctx.moveTo(s * 0.12, s * 0.15); ctx.lineTo(s * 0.22, s * 0.06);
+    ctx.moveTo(-s * 0.2, s * 0.05); ctx.lineTo(-s * 0.12, s * 0.12);
     ctx.stroke();
+    ctx.restore();
+    rockPoly(0, s * 0.03, s * 0.25, 9, 1.7, 0.95);
+    ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03); ctx.stroke();
+    // heavy angry brows, eyes glancing forward, frown
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.11, -s * 0.07); ctx.lineTo(s * 0.0, -s * 0.02);
+    ctx.moveTo(s * 0.2, -s * 0.07); ctx.lineTo(s * 0.09, -s * 0.02);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(0.8, s * 0.018);
+    for (const ex of [-s * 0.045, s * 0.135]) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(ex, s * 0.02, s * 0.04, s * 0.024, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = K;
+      ctx.beginPath(); ctx.arc(ex + s * 0.016, s * 0.02, s * 0.017, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.lineWidth = Math.max(1, s * 0.025);
-    ctx.beginPath(); ctx.moveTo(-s * 0.02, s * 0.15); ctx.quadraticCurveTo(s * 0.02, s * 0.11, s * 0.07, s * 0.15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * 0.0, s * 0.14); ctx.quadraticCurveTo(s * 0.05, s * 0.11, s * 0.11, s * 0.13); ctx.stroke();
   }
 
-  function drawGrookey(s, now, K) {
-    const hop = Math.abs(Math.sin(now / 110)) * s * 0.06;
-    shadow(s, hop);
-    ctx.translate(0, -hop);
-    const GR = '#5fb33a', TAN = '#f1c58f', BR = '#8a5a2b';
-    // tail
-    ctx.strokeStyle = K; ctx.lineWidth = Math.max(3, s * 0.07);
-    ctx.beginPath(); ctx.moveTo(-s * 0.12, s * 0.28); ctx.quadraticCurveTo(-s * 0.42, s * 0.3, -s * 0.34, s * 0.02); ctx.stroke();
-    ctx.strokeStyle = BR; ctx.lineWidth = Math.max(1.5, s * 0.04); ctx.stroke();
-    ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03);
-    // feet and body
-    ctx.fillStyle = TAN;
-    ctx.beginPath(); ctx.ellipse(-s * 0.08, s * 0.38, s * 0.07, s * 0.04, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(s * 0.09, s * 0.38, s * 0.07, s * 0.04, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = GR;
-    ctx.beginPath(); ctx.ellipse(0, s * 0.22, s * 0.15, s * 0.15, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = TAN;
-    ctx.beginPath(); ctx.ellipse(s * 0.02, s * 0.25, s * 0.08, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
-    // stick on head
-    ctx.strokeStyle = K; ctx.lineWidth = Math.max(2.5, s * 0.055);
-    ctx.beginPath(); ctx.moveTo(s * 0.02, -s * 0.28); ctx.lineTo(s * 0.12, -s * 0.52); ctx.stroke();
-    ctx.strokeStyle = BR; ctx.lineWidth = Math.max(1.2, s * 0.03); ctx.stroke();
-    ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03);
-    ctx.fillStyle = '#7fd04a';
-    ctx.beginPath(); ctx.ellipse(s * 0.17, -s * 0.5, s * 0.07, s * 0.035, -0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // ears
-    for (const side of [-1, 1]) {
-      ctx.fillStyle = TAN;
-      ctx.beginPath(); ctx.arc(side * s * 0.25 + s * 0.02, -s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#e39a5a';
-      ctx.beginPath(); ctx.arc(side * s * 0.25 + s * 0.02, -s * 0.1, s * 0.045, 0, Math.PI * 2); ctx.fill();
+  function drawGolem(s, now, K) {
+    const wob = Math.sin(now / 120) * 0.06;
+    shadow(s, 0);
+    ctx.rotate(wob);
+    const SH = '#5c6357', PL = '#747c6c', SK = '#cdbcb5', SKD = '#a8958f';
+    const lw = Math.max(1.2, s * 0.028);
+    ctx.lineWidth = lw;
+    // back arm raised behind the shell
+    limb(-s * 0.18, -s * 0.06, -s * 0.36, -s * 0.06, -s * 0.38, -s * 0.24, Math.max(2.5, s * 0.075), SKD, K);
+    ctx.lineWidth = lw;
+    claws(-s * 0.39, -s * 0.28, -Math.PI / 2 - 0.3, s * 0.07, K);
+    // stubby legs with claws
+    ctx.lineWidth = lw;
+    for (const lx of [-s * 0.13, s * 0.13]) {
+      ctx.fillStyle = SK;
+      ctx.beginPath(); ctx.ellipse(lx, s * 0.32, s * 0.085, s * 0.075, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      claws(lx + s * 0.06, s * 0.38, 0.2, s * 0.06, K);
+      ctx.lineWidth = lw;
     }
-    // head with hair tuft
-    ctx.fillStyle = GR;
-    ctx.beginPath(); ctx.arc(s * 0.02, -s * 0.1, s * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // boulder shell made of plates
+    ctx.fillStyle = SH;
+    ctx.beginPath(); ctx.arc(-s * 0.02, -s * 0.02, s * 0.31, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.lineWidth = Math.max(0.8, s * 0.02);
+    [[-0.16, -0.2], [0.06, -0.24], [-0.25, 0.02], [-0.03, -0.02], [0.17, -0.06], [-0.13, 0.2], [0.09, 0.18]].forEach(([x, y], i) => {
+      rockPoly(s * x, s * y, s * 0.105, 6, i * 1.7, 0.9);
+      ctx.fillStyle = PL; ctx.fill(); ctx.stroke();
+    });
+    ctx.restore();
+    ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.arc(-s * 0.02, -s * 0.02, s * 0.31, 0, Math.PI * 2); ctx.stroke();
+    // front arm reaching forward
+    limb(s * 0.16, s * 0.08, s * 0.3, s * 0.02, s * 0.38, s * 0.12, Math.max(2.5, s * 0.075), SK, K);
+    claws(s * 0.41, s * 0.14, 0.3, s * 0.07, K);
+    ctx.lineWidth = lw;
+    // head poking out with a beak-like snout, red eye and open mouth
+    ctx.fillStyle = SK;
     ctx.beginPath();
-    ctx.moveTo(-s * 0.12, -s * 0.26); ctx.lineTo(-s * 0.06, -s * 0.38); ctx.lineTo(0, -s * 0.28); ctx.lineTo(s * 0.06, -s * 0.36); ctx.lineTo(s * 0.1, -s * 0.27);
-    ctx.fill(); ctx.stroke();
-    // face patch
-    ctx.fillStyle = TAN;
-    ctx.beginPath(); ctx.ellipse(s * 0.04, -s * 0.05, s * 0.16, s * 0.13, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = K;
-    for (const ex of [-s * 0.03, s * 0.1]) {
-      ctx.beginPath(); ctx.ellipse(ex, -s * 0.08, s * 0.035, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = '#fff';
-    for (const ex of [-s * 0.04, s * 0.09]) {
-      ctx.beginPath(); ctx.arc(ex, -s * 0.1, s * 0.013, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = '#e46a5a';
-    ctx.beginPath(); ctx.ellipse(s * 0.04, s * 0.01, s * 0.05, s * 0.03, 0, 0, Math.PI); ctx.fill(); ctx.stroke();
-  }
-
-  function drawOnixPart(s, r, head, now, K) {
-    const STONE = '#9a948f';
-    ctx.fillStyle = STONE;
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.35, r * 0.4, r * 0.2, -0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(60,50,45,0.3)';
-    ctx.beginPath(); ctx.arc(r * 0.3, r * 0.3, r * 0.12, 0, Math.PI * 2); ctx.fill();
-    if (!head) return;
-    // horn
-    ctx.fillStyle = STONE;
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.4, -r * 0.8); ctx.quadraticCurveTo(-r * 0.7, -r * 1.6, -r * 1.1, -r * 1.5); ctx.quadraticCurveTo(-r * 0.6, -r * 1.1, -r * 0.1, -r * 0.95);
+    ctx.moveTo(s * 0.08, s * 0.02);
+    ctx.quadraticCurveTo(s * 0.2, -s * 0.06, s * 0.33, s * 0.04);
+    ctx.lineTo(s * 0.34, s * 0.1);
+    ctx.quadraticCurveTo(s * 0.22, s * 0.22, s * 0.08, s * 0.16);
     ctx.closePath(); ctx.fill(); ctx.stroke();
-    // eye and mouth
+    ctx.fillStyle = '#7b2632';
+    ctx.beginPath(); ctx.moveTo(s * 0.2, s * 0.1); ctx.lineTo(s * 0.34, s * 0.09); ctx.lineTo(s * 0.27, s * 0.17); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.ellipse(r * 0.35, -r * 0.15, r * 0.25, r * 0.15, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * 0.24, s * 0.1); ctx.lineTo(s * 0.27, s * 0.1); ctx.lineTo(s * 0.255, s * 0.13); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d9443a';
+    ctx.beginPath(); ctx.ellipse(s * 0.2, s * 0.04, s * 0.028, s * 0.022, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(s * 0.21, s * 0.035, s * 0.008, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1.2, s * 0.03);
+    ctx.beginPath(); ctx.moveTo(s * 0.15, s * 0.0); ctx.lineTo(s * 0.25, s * 0.02); ctx.stroke();
+  }
+
+  function drawOnixSeg(s, r, seed, K) {
+    rockPoly(0, 0, r, 7, seed, 0.9);
+    ctx.fillStyle = '#8f8e9b'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.ellipse(-r * 0.25, -r * 0.35, r * 0.4, r * 0.18, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5f5e6b'; ctx.lineWidth = Math.max(0.8, s * 0.016);
+    ctx.beginPath(); ctx.moveTo(-r * 0.5, r * 0.1); ctx.lineTo(r * 0.1, -r * 0.1); ctx.lineTo(r * 0.55, r * 0.2); ctx.stroke();
+    ctx.strokeStyle = K;
+  }
+
+  function drawOnixHead(s, K) {
+    const ST = '#8f8e9b';
+    ctx.lineWidth = Math.max(1.2, s * 0.03);
+    // single tall horn
+    ctx.fillStyle = ST;
+    ctx.beginPath(); ctx.moveTo(-s * 0.09, -s * 0.15); ctx.lineTo(-s * 0.13, -s * 0.6); ctx.lineTo(s * 0.02, -s * 0.17); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // blocky head with a long snout
+    ctx.beginPath();
+    [[-0.26, -0.1], [-0.08, -0.2], [0.14, -0.16], [0.34, -0.04], [0.33, 0.08], [0.14, 0.15], [-0.17, 0.15], [-0.29, 0.03]]
+      .forEach(([x, y], i) => (i ? ctx.lineTo(s * x, s * y) : ctx.moveTo(s * x, s * y)));
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#5f5e6b'; ctx.lineWidth = Math.max(0.8, s * 0.016);
+    ctx.beginPath(); ctx.moveTo(-s * 0.08, -s * 0.2); ctx.lineTo(-s * 0.04, s * 0.15); ctx.moveTo(s * 0.14, -s * 0.16); ctx.lineTo(s * 0.12, -s * 0.02); ctx.stroke();
+    ctx.strokeStyle = K;
+    // fierce white eye, brow and mouth line
+    ctx.lineWidth = Math.max(0.8, s * 0.018);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(s * 0.16, -s * 0.05, s * 0.06, s * 0.033, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = K;
-    ctx.beginPath(); ctx.arc(r * 0.42, -r * 0.13, r * 0.09, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s * 0.18, -s * 0.045, s * 0.017, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = Math.max(1.5, s * 0.035);
-    ctx.beginPath(); ctx.moveTo(r * 0.1, -r * 0.42); ctx.lineTo(r * 0.62, -r * 0.3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(r * 0.2, r * 0.4); ctx.lineTo(r * 0.85, r * 0.25); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * 0.07, -s * 0.12); ctx.lineTo(s * 0.24, -s * 0.07); ctx.stroke();
+    ctx.lineWidth = Math.max(1, s * 0.025);
+    ctx.beginPath(); ctx.moveTo(s * 0.12, s * 0.08); ctx.lineTo(s * 0.32, s * 0.05); ctx.stroke();
   }
 
   function drawArceus(s, now, K) {
@@ -1120,51 +1175,67 @@
     ctx.beginPath(); ctx.arc(0, -s * 0.05, s * 0.55, 0, Math.PI * 2); ctx.fill();
     shadow(s, lift);
     ctx.translate(0, -lift);
-    const W = '#f6f3ea', GY = '#aba79d', GOLD = '#e8c04a';
-    // legs with gold hooves
-    for (const lx of [-s * 0.16, -s * 0.02, s * 0.12]) {
-      ctx.fillStyle = W;
-      ctx.beginPath(); ctx.ellipse(lx, s * 0.3, s * 0.045, s * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const W = '#f7f5ef', GY = '#a4a199', DG = '#56534f', GOLD = '#e2b83d', GEM = '#2fae5e';
+    const lw = Math.max(1.2, s * 0.028);
+    ctx.lineWidth = lw;
+    // four sturdy legs with pointed gold hooves (far pair darker)
+    for (const [lx, far] of [[-s * 0.2, true], [s * 0.06, true], [-s * 0.12, false], [s * 0.15, false]]) {
+      const y0 = s * 0.1, len = s * 0.3, w = s * 0.05;
+      ctx.fillStyle = far ? '#d8d5cc' : W;
+      ctx.beginPath();
+      ctx.moveTo(lx - w, y0); ctx.lineTo(lx + w, y0); ctx.lineTo(lx + w * 0.6, y0 + len * 0.72);
+      ctx.lineTo(lx - w * 0.6, y0 + len * 0.72); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = GOLD;
-      ctx.beginPath(); ctx.ellipse(lx, s * 0.39, s * 0.05, s * 0.03, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lx + w * 0.6, y0 + len * 0.72); ctx.lineTo(lx + w * 0.2, y0 + len); ctx.lineTo(lx - w * 0.6, y0 + len * 0.72); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
-    // body
+    // body with grey underside
     ctx.fillStyle = W;
-    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.12, s * 0.27, s * 0.16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.12, s * 0.27, s * 0.16, 0, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = GY; ctx.fillRect(-s * 0.3, s * 0.17, s * 0.6, s * 0.2);
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.07, s * 0.26, s * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = GY; ctx.fillRect(-s * 0.3, s * 0.12, s * 0.6, s * 0.1);
     ctx.restore();
-    // golden ring around the waist
-    ctx.lineWidth = Math.max(3, s * 0.08);
-    ctx.strokeStyle = K;
-    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.1, s * 0.36, s * 0.12, 0, Math.PI * 0.05, Math.PI * 0.95); ctx.stroke();
-    ctx.strokeStyle = GOLD; ctx.lineWidth = Math.max(1.8, s * 0.045); ctx.stroke();
-    ctx.lineWidth = Math.max(1.2, s * 0.03); ctx.strokeStyle = K;
-    for (const a of [0.2, 0.5, 0.8]) {
-      const x = -s * 0.02 + Math.cos(Math.PI * a) * s * 0.36, y = s * 0.1 + Math.sin(Math.PI * a) * s * 0.12;
-      ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(x, y, s * 0.04, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#3fbf73'; ctx.beginPath(); ctx.arc(x, y, s * 0.015, 0, Math.PI * 2); ctx.fill();
-    }
-    // neck and swept-back crest
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.07, s * 0.26, s * 0.13, 0, 0, Math.PI * 2); ctx.stroke();
+    // dark mane behind the neck
+    ctx.fillStyle = DG;
+    ctx.beginPath(); ctx.moveTo(s * 0.04, s * 0.0); ctx.quadraticCurveTo(-s * 0.06, -s * 0.18, s * 0.02, -s * 0.34); ctx.lineTo(s * 0.12, -s * 0.24); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // neck with chest spikes
     ctx.fillStyle = W;
-    ctx.beginPath(); ctx.ellipse(s * 0.12, -s * 0.06, s * 0.08, s * 0.13, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.12, -s * 0.08, s * 0.07, s * 0.15, 0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    for (const y of [-s * 0.07, s * 0.0]) {
+      ctx.beginPath(); ctx.moveTo(s * 0.17, y - s * 0.03); ctx.lineTo(s * 0.26, y); ctx.lineTo(s * 0.17, y + s * 0.02); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    // tall crest arching up and back
     ctx.beginPath();
-    ctx.moveTo(s * 0.06, -s * 0.22);
-    ctx.quadraticCurveTo(-s * 0.08, -s * 0.38, -s * 0.24, -s * 0.5);
-    ctx.quadraticCurveTo(-s * 0.04, -s * 0.44, s * 0.16, -s * 0.3);
+    ctx.moveTo(s * 0.1, -s * 0.28);
+    ctx.quadraticCurveTo(s * 0.02, -s * 0.64, -s * 0.34, -s * 0.58);
+    ctx.quadraticCurveTo(-s * 0.04, -s * 0.5, s * 0.2, -s * 0.25);
     ctx.closePath(); ctx.fill(); ctx.stroke();
-    // head
-    ctx.beginPath(); ctx.ellipse(s * 0.18, -s * 0.2, s * 0.13, s * 0.11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(s * 0.18, -s * 0.2, s * 0.13, s * 0.11, 0, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = GY; ctx.fillRect(s * 0.12, -s * 0.2, s * 0.25, s * 0.2);
-    ctx.restore();
-    // green eye with red pupil
-    ctx.fillStyle = '#3fbf73';
-    ctx.beginPath(); ctx.ellipse(s * 0.22, -s * 0.22, s * 0.04, s * 0.03, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#d2342c';
-    ctx.beginPath(); ctx.arc(s * 0.235, -s * 0.22, s * 0.015, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = GY; ctx.lineWidth = Math.max(1, s * 0.02);
+    ctx.beginPath(); ctx.moveTo(s * 0.11, -s * 0.33); ctx.quadraticCurveTo(s * 0.02, -s * 0.56, -s * 0.26, -s * 0.57); ctx.stroke();
+    ctx.strokeStyle = K; ctx.lineWidth = lw;
+    // head: pointed ear, grey face mask, green eye
+    ctx.fillStyle = W;
+    ctx.beginPath(); ctx.moveTo(s * 0.12, -s * 0.31); ctx.lineTo(s * 0.13, -s * 0.42); ctx.lineTo(s * 0.18, -s * 0.32); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.18, -s * 0.26, s * 0.1, s * 0.075, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = GY;
+    ctx.beginPath(); ctx.ellipse(s * 0.23, -s * 0.24, s * 0.065, s * 0.045, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = GEM;
+    ctx.beginPath(); ctx.ellipse(s * 0.2, -s * 0.28, s * 0.026, s * 0.017, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // golden cross-wheel with four green gems
+    const rx = s * 0.36, ry = s * 0.2, cy0 = s * 0.06, cx0 = -s * 0.02;
+    for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+      ctx.beginPath(); ctx.ellipse(cx0, cy0, rx, ry, 0, a - 0.5, a + 0.5);
+      ctx.strokeStyle = K; ctx.lineWidth = Math.max(3, s * 0.075); ctx.stroke();
+      ctx.strokeStyle = GOLD; ctx.lineWidth = Math.max(1.8, s * 0.045); ctx.stroke();
+    }
+    ctx.strokeStyle = K; ctx.lineWidth = lw;
+    for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+      const x = cx0 + Math.cos(a) * rx, y = cy0 + Math.sin(a) * ry;
+      ctx.fillStyle = GOLD;
+      ctx.beginPath(); ctx.ellipse(x, y, s * 0.05, s * 0.035, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = GEM;
+      ctx.beginPath(); ctx.ellipse(x, y, s * 0.022, s * 0.016, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   function drawEnemy(e, now) {
@@ -1185,11 +1256,11 @@
     if (e.type === 'onix') {
       for (let i = e.body.length - 1; i >= 0; i--) {
         const b = e.body[i];
-        drawAt(b.rx, b.ry, () => drawOnixPart(s, s * (0.24 - i * 0.03), false, now, K));
+        drawAt(b.rx, b.ry, () => drawOnixSeg(s, s * (0.27 - i * 0.04), i * 2.3 + 1, K));
       }
-      drawAt(e.rx, e.ry, () => { ctx.translate(0, -s * 0.04); drawOnixPart(s, s * 0.3, true, now, K); });
+      drawAt(e.rx, e.ry, () => { ctx.translate(0, -s * 0.04); drawOnixHead(s, K); });
     } else {
-      drawAt(e.rx, e.ry, () => ({ geodude: drawGeodude, grookey: drawGrookey, arceus: drawArceus })[e.type](s, now, K));
+      drawAt(e.rx, e.ry, () => ({ geodude: drawGeodude, golem: drawGolem, arceus: drawArceus })[e.type](s, now, K));
     }
     // dizzy stars while stunned
     if (e.stun > 0) {
