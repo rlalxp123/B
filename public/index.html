@@ -184,6 +184,7 @@
   .dexTitle { font-size: 13px; font-weight: 800; margin-top: 6px; }
   .dex div { background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 3px; text-align: center; font-size: 11px; font-weight: 700; word-break: keep-all; }
   .dex svg { width: 100%; height: 60px; }
+  .dex .mystery span { display: flex; align-items: center; justify-content: center; height: 60px; font-size: 34px; font-weight: 900; color: #c9c1dc; }
   .dex .unknown svg { filter: brightness(0); opacity: 0.35; }
   .row { display: flex; gap: 8px; margin-top: 12px; }
   .row button { flex: 1; font: inherit; font-weight: 800; font-size: 15px; padding: 11px; border-radius: 12px; border: 3px solid var(--ink); background: #fff; cursor: pointer; }
@@ -1527,7 +1528,8 @@
   $('dexBtn').addEventListener('click', () => {
     const cell = (k) => {
       const seen = S.dex[k];
-      return `<div class="${seen ? '' : 'unknown'}">${petSVG(k, 'normal')}${seen ? NAMES[k] : '???'}</div>`;
+      // 못 만난 포켓몬은 그림자도 보여주지 않아요
+      return seen ? `<div>${petSVG(k, 'normal')}${NAMES[k]}</div>` : `<div class="mystery"><span>?</span>???</div>`;
     };
     // 계열 구분 없이 한 칸에 모두 (발견한 포켓몬만 이름이 보여요)
     const all = Object.values(LINES).flat();
