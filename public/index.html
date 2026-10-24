@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#ffd21f">
-<title>피카츄 집찾아가기</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<meta name="theme-color" content="#ff9ec8">
+<title>뮤 집찾아가기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>">
 <style>
   :root {
-    --bg: #fff8dc;
+    --bg: #fff0f6;
     --panel: #ffffff;
-    --ink: #3b2a12;
-    --accent: #ffd21f;
-    --accent-dark: #e0a800;
+    --ink: #4a2338;
+    --accent: #ffa8cf;
+    --accent-dark: #e0569a;
     --red: #e8453c;
     --grass: #9bd770;
   }
@@ -36,7 +36,7 @@
   #overlay {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; text-align: center;
-    background: rgba(255, 248, 220, 0.92); padding: 16px;
+    background: rgba(255, 240, 246, 0.92); padding: 16px;
   }
   #overlay.show { display: flex; }
   #overlay .card { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 360px; }
@@ -67,11 +67,11 @@
 <body>
 <div id="app">
   <header>
-    <h1>⚡ 피카츄 집찾아가기</h1>
+    <h1>💗 뮤 집찾아가기</h1>
     <div class="stats">
       <span>레벨 <b id="lv">1</b></span>
       <span>⏱ <b id="time">0.0</b>초</span>
-      <span>⚡ <b id="bolts">0/0</b></span>
+      <span>💗 <b id="bolts">0/0</b></span>
     </div>
   </header>
 
@@ -185,7 +185,7 @@
   // ---------- state ----------
   const G = {
     level: 1,
-    best: parseInt(store('pika-best') || '0', 10) || 0,
+    best: parseInt(store('mew-best') || '0', 10) || 0,
     state: 'menu', // menu | play | win
     cols: 7, rows: 7, maze: null,
     player: null, home: null,
@@ -236,7 +236,7 @@
     if (G.bolts.has(k)) {
       G.bolts.delete(k);
       G.got++;
-      burst(p.x, p.y, '#ffd21f', 14);
+      burst(p.x, p.y, '#ff6fae', 14);
       buzz(15);
     }
     if (p.x === G.home.x && p.y === G.home.y) win();
@@ -246,15 +246,15 @@
   function win() {
     G.state = 'win';
     G.elapsed = (performance.now() - G.t0) / 1000;
-    for (let i = 0; i < 4; i++) burst(G.home.x, G.home.y, ['#ffd21f', '#e8453c', '#6ec6ff', '#ffffff'][i], 18);
+    for (let i = 0; i < 4; i++) burst(G.home.x, G.home.y, ['#ff6fae', '#ffd1e6', '#8ec5ff', '#ffffff'][i], 18);
     buzz([30, 40, 30]);
-    if (G.level > G.best) { G.best = G.level; store('pika-best', String(G.best)); }
+    if (G.level > G.best) { G.best = G.level; store('mew-best', String(G.best)); }
     const stars = 1 + (G.got >= Math.ceil(G.total / 2) ? 1 : 0) + (G.got === G.total ? 1 : 0);
     setTimeout(() => showOverlay(`
       <h2>🏠 집에 도착했어요!</h2>
       <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
       <p>레벨 ${G.level} 클리어<br>
-      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · ⚡ ${G.got}/${G.total}</p>
+      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · 💗 ${G.got}/${G.total}</p>
       <button id="nextBtn">다음 레벨 ▶</button>
     `, () => $('nextBtn').onclick = () => { G.level++; newLevel(); }), 700);
   }
@@ -339,9 +339,9 @@
     G.state = 'menu';
     if (!G.maze) { G.maze = makeMaze(7, 7); G.player = { x: 0, y: 0, rx: 0, ry: 0, face: 1 }; G.home = { x: 6, y: 6 }; }
     showOverlay(`
-      <h2>⚡ 피카츄 집찾아가기</h2>
-      <p>길을 잃은 피카츄를 미로 끝의 <b>집 🏠</b>까지 데려다 주세요!<br>
-      가는 길에 <b>번개 ⚡</b>를 모으면 별을 더 받아요.</p>
+      <h2>💗 뮤 집찾아가기</h2>
+      <p>길을 잃은 뮤를 미로 끝의 <b>집 🏠</b>까지 데려다 주세요!<br>
+      가는 길에 <b>하트 💗</b>를 모으면 별을 더 받아요.</p>
       ${G.best ? `<p>최고 기록: 레벨 ${G.best}</p>` : ''}
       <button id="startBtn">시작하기</button>
     `, () => $('startBtn').onclick = () => { G.level = 1; newLevel(); });
@@ -401,7 +401,7 @@
     const { cs } = G;
     ctx.save();
     ctx.globalAlpha = Math.min(1, (G.hintUntil - now) / 500);
-    ctx.strokeStyle = '#fff36b';
+    ctx.strokeStyle = '#fff4fa';
     ctx.lineWidth = Math.max(3, cs * 0.18);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.setLineDash([cs * 0.25, cs * 0.3]);
@@ -415,15 +415,19 @@
     ctx.restore();
   }
 
-  function drawBolt(cx, cy, s) {
+  function drawHeart(cx, cy, s) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(s, s);
     ctx.beginPath();
-    ctx.moveTo(0.1, -0.5); ctx.lineTo(-0.3, 0.08); ctx.lineTo(-0.02, 0.08);
-    ctx.lineTo(-0.12, 0.5); ctx.lineTo(0.3, -0.1); ctx.lineTo(0.02, -0.1); ctx.closePath();
-    ctx.fillStyle = '#ffd21f'; ctx.fill();
-    ctx.lineWidth = 0.07; ctx.strokeStyle = '#8a5a00'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.moveTo(0, 0.32);
+    ctx.bezierCurveTo(-0.5, 0.02, -0.36, -0.42, 0, -0.17);
+    ctx.bezierCurveTo(0.36, -0.42, 0.5, 0.02, 0, 0.32);
+    ctx.closePath();
+    ctx.fillStyle = '#ff6fae'; ctx.fill();
+    ctx.lineWidth = 0.06; ctx.strokeStyle = '#8a2456'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.ellipse(-0.15, -0.12, 0.06, 0.04, -0.6, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
@@ -432,7 +436,7 @@
     for (const k of G.bolts) {
       const x = k % cols, y = Math.floor(k / cols);
       const bob = Math.sin(now / 300 + k) * cs * 0.06;
-      drawBolt((x + 0.5) * cs, (y + 0.5) * cs + bob, cs * 0.7);
+      drawHeart((x + 0.5) * cs, (y + 0.5) * cs + bob, cs * 0.75);
     }
   }
 
@@ -469,109 +473,108 @@
     ctx.restore();
   }
 
-  function drawPika(cx, cy, s, face, now) {
-    const moving = Math.abs(G.player.rx - G.player.x) + Math.abs(G.player.ry - G.player.y) > 0.02;
-    const hop = G.state === 'win'
-      ? Math.abs(Math.sin(now / 150)) * s * 0.25
-      : (moving ? Math.abs(Math.sin(now / 60)) * s * 0.08 : Math.sin(now / 500) * s * 0.02);
+  function drawMew(cx, cy, s, face, now) {
+    // Mew floats, so it bobs gently instead of hopping
+    const float = Math.sin(now / 420) * s * 0.04 + s * 0.02;
+    const lift = G.state === 'win' ? Math.abs(Math.sin(now / 160)) * s * 0.22 + float : float;
     const shake = G.bump > 0 ? Math.sin(G.bump * 40) * s * 0.06 * G.bump : 0;
-    const Y = '#ffd21f', K = '#2a1d0c';
+    const P = '#ffb3d4', PD = '#f07fb4', K = '#4a2338';
     ctx.save();
-    ctx.translate(cx + shake, cy - hop);
+    ctx.translate(cx + shake, cy - lift);
     ctx.scale(face, 1);
-    ctx.lineWidth = Math.max(1.2, s * 0.035);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.strokeStyle = K;
-    ctx.lineJoin = 'round';
+    const lw = Math.max(1.2, s * 0.032);
+    ctx.lineWidth = lw;
 
-    // shadow
+    // shadow on the ground, smaller when higher
     ctx.save();
-    ctx.translate(0, hop);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.ellipse(0, s * 0.42, s * 0.28, s * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(0, lift);
+    const sh = 1 - Math.min(0.5, lift / s);
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath(); ctx.ellipse(0, s * 0.43, s * 0.22 * sh, s * 0.055 * sh, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // tail (zigzag behind)
-    ctx.fillStyle = Y;
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.22, s * 0.25);
-    ctx.lineTo(-s * 0.36, s * 0.12);
-    ctx.lineTo(-s * 0.3, s * 0.06);
-    ctx.lineTo(-s * 0.48, -s * 0.1);
-    ctx.lineTo(-s * 0.4, -s * 0.16);
-    ctx.lineTo(-s * 0.56, -s * 0.38);
-    ctx.lineTo(-s * 0.3, -s * 0.2);
-    ctx.lineTo(-s * 0.36, -s * 0.14);
-    ctx.lineTo(-s * 0.2, 0.0);
-    ctx.lineTo(-s * 0.24, s * 0.05);
-    ctx.lineTo(-s * 0.12, s * 0.2);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-
-    // ears
-    const ear = (x, rot) => {
-      ctx.save();
-      ctx.translate(x, -s * 0.32);
-      ctx.rotate(rot);
-      ctx.beginPath(); ctx.ellipse(0, -s * 0.12, s * 0.075, s * 0.2, 0, 0, Math.PI * 2);
-      ctx.fillStyle = Y; ctx.fill();
-      ctx.save(); ctx.clip();
-      ctx.fillStyle = K; ctx.fillRect(-s * 0.1, -s * 0.36, s * 0.2, s * 0.13);
-      ctx.restore();
-      ctx.stroke();
-      ctx.restore();
+    // long thin tail with an oval tip, swaying
+    const sway = Math.sin(now / 350) * s * 0.06;
+    const tx = -s * 0.47 + sway, ty = -s * 0.24;
+    const tail = () => {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.1, s * 0.28);
+      ctx.bezierCurveTo(-s * 0.45, s * 0.42, -s * 0.62, s * 0.05, tx, ty);
     };
-    ear(-s * 0.13, -0.45);
-    ear(s * 0.13, 0.45);
+    tail(); ctx.lineWidth = Math.max(3, s * 0.085); ctx.stroke();
+    tail(); ctx.lineWidth = Math.max(1.5, s * 0.05); ctx.strokeStyle = P; ctx.stroke();
+    ctx.strokeStyle = K; ctx.lineWidth = lw;
+    ctx.fillStyle = P;
+    ctx.beginPath(); ctx.ellipse(tx, ty - s * 0.06, s * 0.065, s * 0.1, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // body
-    ctx.fillStyle = Y;
-    ctx.beginPath(); ctx.ellipse(0, s * 0.2, s * 0.25, s * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // feet
-    ctx.beginPath(); ctx.ellipse(-s * 0.12, s * 0.39, s * 0.08, s * 0.045, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.39, s * 0.08, s * 0.045, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // head
-    ctx.beginPath(); ctx.ellipse(0, -s * 0.12, s * 0.29, s * 0.24, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // cover seam between head and body
-    ctx.beginPath(); ctx.ellipse(0, s * 0.08, s * 0.2, s * 0.08, 0, 0, Math.PI * 2); ctx.fill();
-    // arms
-    ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.17, s * 0.06, s * 0.035, -0.5, 0, Math.PI * 2); ctx.stroke();
+    // ears (behind head)
+    const ear = (side) => {
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.27, -s * 0.16);
+      ctx.lineTo(side * s * 0.33, -s * 0.46);
+      ctx.lineTo(side * s * 0.07, -s * 0.33);
+      ctx.closePath();
+      ctx.fillStyle = P; ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.25, -s * 0.22);
+      ctx.lineTo(side * s * 0.29, -s * 0.39);
+      ctx.lineTo(side * s * 0.14, -s * 0.31);
+      ctx.closePath();
+      ctx.fillStyle = PD; ctx.fill();
+    };
+    ear(-1); ear(1);
 
-    // eyes
-    const ex = s * 0.11, ey = -s * 0.14, er = s * 0.055;
-    ctx.fillStyle = K;
-    [-ex + s * 0.03, ex + s * 0.03].forEach((x) => {
-      ctx.beginPath(); ctx.arc(x, ey, er, 0, Math.PI * 2); ctx.fill();
-    });
-    ctx.fillStyle = '#fff';
-    [-ex + s * 0.045, ex + s * 0.045].forEach((x) => {
-      ctx.beginPath(); ctx.arc(x, ey - er * 0.35, er * 0.38, 0, Math.PI * 2); ctx.fill();
-    });
-    // nose
-    ctx.fillStyle = K;
-    ctx.beginPath(); ctx.arc(s * 0.03, -s * 0.07, s * 0.012, 0, Math.PI * 2); ctx.fill();
-    // cheeks
-    ctx.fillStyle = '#e8453c';
-    ctx.beginPath(); ctx.arc(-s * 0.19, -s * 0.03, s * 0.055, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(s * 0.23, -s * 0.03, s * 0.055, 0, Math.PI * 2); ctx.fill();
-    // mouth
-    ctx.lineWidth = Math.max(1, s * 0.025);
+    // small body and dangling legs
+    ctx.fillStyle = P;
+    ctx.beginPath(); ctx.ellipse(-s * 0.07, s * 0.35, s * 0.05, s * 0.08, 0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.08, s * 0.35, s * 0.05, s * 0.08, -0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, s * 0.2, s * 0.15, s * 0.16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // tiny arms
+    ctx.beginPath(); ctx.ellipse(s * 0.13, s * 0.15, s * 0.055, s * 0.035, -0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-s * 0.13, s * 0.15, s * 0.055, s * 0.035, 0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // big round head
+    ctx.fillStyle = P;
+    ctx.beginPath(); ctx.ellipse(0, -s * 0.1, s * 0.29, s * 0.25, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // hide the head/body seam
+    ctx.beginPath(); ctx.ellipse(0, s * 0.09, s * 0.11, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+
+    // large blue eyes
+    const ey = -s * 0.1;
+    for (const ex of [-s * 0.09, s * 0.15]) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.07, s * 0.095, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#3f86e8';
+      ctx.beginPath(); ctx.ellipse(ex + s * 0.012, ey + s * 0.012, s * 0.055, s * 0.078, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1c2b66';
+      ctx.beginPath(); ctx.ellipse(ex + s * 0.015, ey + s * 0.02, s * 0.03, s * 0.045, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(ex - s * 0.01, ey - s * 0.035, s * 0.02, 0, Math.PI * 2); ctx.fill();
+    }
+    // blush and smile
+    ctx.fillStyle = 'rgba(240, 90, 150, 0.35)';
+    ctx.beginPath(); ctx.ellipse(-s * 0.18, s * 0.01, s * 0.04, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.25, s * 0.01, s * 0.04, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1, s * 0.022);
     ctx.beginPath();
-    ctx.moveTo(-s * 0.02, -s * 0.03);
-    ctx.quadraticCurveTo(s * 0.005, -s * 0.0, s * 0.03, -s * 0.04);
-    ctx.quadraticCurveTo(s * 0.055, -s * 0.0, s * 0.08, -s * 0.03);
+    ctx.moveTo(s * 0.0, s * 0.02);
+    ctx.quadraticCurveTo(s * 0.04, s * 0.06, s * 0.08, s * 0.02);
     ctx.stroke();
 
-    // sparks when winning
-    if (G.state === 'win' && Math.floor(now / 120) % 2) {
-      ctx.strokeStyle = '#fff36b';
-      ctx.lineWidth = Math.max(1.5, s * 0.04);
-      for (const sx of [-1, 1]) {
+    // sparkles when home
+    if (G.state === 'win') {
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 4; i++) {
+        const a = now / 300 + i * Math.PI / 2;
+        const r = s * 0.48, sz = s * (0.05 + 0.03 * Math.sin(now / 100 + i));
+        const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.8 - s * 0.05;
         ctx.beginPath();
-        ctx.moveTo(sx * s * 0.3, -s * 0.05);
-        ctx.lineTo(sx * s * 0.42, -s * 0.12);
-        ctx.lineTo(sx * s * 0.38, -s * 0.0);
-        ctx.lineTo(sx * s * 0.5, -s * 0.06);
-        ctx.stroke();
+        ctx.moveTo(x, y - sz * 2); ctx.lineTo(x + sz * 0.5, y); ctx.lineTo(x, y + sz * 2); ctx.lineTo(x - sz * 0.5, y); ctx.closePath();
+        ctx.moveTo(x - sz * 2, y); ctx.lineTo(x, y + sz * 0.5); ctx.lineTo(x + sz * 2, y); ctx.lineTo(x, y - sz * 0.5); ctx.closePath();
+        ctx.fill();
       }
     }
     ctx.restore();
@@ -623,7 +626,7 @@
       drawWalls();
       drawBolts(now);
       drawHome(now);
-      drawPika((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.86, p.face, now);
+      drawMew((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.9, p.face, now);
       drawParticles(dt * 4);
     }
     requestAnimationFrame(frame);
