@@ -1042,12 +1042,49 @@
     raichu: { body: '#f0a040', belly: '#f8ead0', cheek: '#f6d23a', tail: 'raichu', foot: '#8a5a2a' },
   };
 
+  // 꼬부기 계열 (꼬부기, 어니부기, 거북왕)
+  function turtleSVG(o, face) {
+    const c = o.body, shell = '#b8803a', rim = '#f2e6c0';
+    const tail = {
+      curl: `<path d="M128 166C160 172 170 150 156 140C146 134 140 146 150 150" stroke="${INK}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M128 166C160 172 170 150 156 140C146 134 140 146 150 150" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>`,
+      fluffy: `<path d="M126 166C170 176 196 140 178 112C176 136 160 146 146 140C160 154 140 162 126 160Z" fill="#e8eef8" ${SK}/><path d="M150 152Q170 146 176 124" stroke="${c}" stroke-width="3" fill="none"/>`,
+      short: `<path d="M126 168L150 172L132 158Z" fill="${c}" ${SK}/>`,
+    }[o.tail];
+    const ear = {
+      none: '',
+      fluffy: both(`<path d="M68 74Q26 56 36 18Q58 40 84 62Z" fill="#e8eef8" ${SK}/><path d="M64 66Q44 50 42 30" stroke="${c}" stroke-width="3" fill="none"/>`),
+      small: both(`<path d="M66 70L58 52L80 62Z" fill="${c}" ${SK}/>`),
+    }[o.ear];
+    const cannon = o.cannon ? both(`<g transform="rotate(30 74 114)"><rect x="18" y="106" width="58" height="17" rx="4" fill="#9a9aa8" ${SK}/><rect x="10" y="103" width="13" height="23" rx="3" fill="#7a7a88" ${SK}/></g>`) : '';
+    return `<svg viewBox="0 0 200 200">
+      ${tail}
+      ${cannon}
+      <ellipse cx="100" cy="142" rx="${o.big ? 54 : 44}" ry="${o.big ? 44 : 38}" fill="${shell}" stroke="${rim}" stroke-width="7"/>
+      <ellipse cx="100" cy="142" rx="${o.big ? 58 : 48}" ry="${o.big ? 48 : 42}" fill="none" stroke="${INK}" stroke-width="3.5"/>
+      <ellipse cx="86" cy="186" rx="14" ry="9" fill="${c}" ${SK}/><ellipse cx="114" cy="186" rx="14" ry="9" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="152" rx="28" ry="30" fill="${o.belly}" ${SK}/>
+      <path d="M74 142h52M74 160h52M100 124v56" stroke="${INK}" stroke-width="2" opacity=".35"/>
+      ${both(`<ellipse cx="66" cy="146" rx="${o.big ? 11 : 8}" ry="${o.big ? 16 : 13}" transform="rotate(30 66 146)" fill="${c}" ${SK}/>`)}
+      ${ear}
+      <ellipse cx="100" cy="90" rx="40" ry="34" fill="${c}" ${SK}/>
+      ${eyes(84, 116, 88, 8.5, face, o.eye)}${o.fierce ? fierce(face) : ''}
+      ${face !== 'sad' && !o.fierce ? cheeks(70, 130, 102) : ''}
+      ${mouth(100, 108, face)}
+    </svg>`;
+  }
+  const TURTLES = {
+    squirtle: { body: '#7ac8f0', belly: '#f2cc78', eye: '#8a3a5a', tail: 'curl', ear: 'none' },
+    wartortle: { body: '#8a9ae8', belly: '#f2e2b0', eye: '#5a3a2a', tail: 'fluffy', ear: 'fluffy', fierce: true },
+    blastoise: { body: '#5a8ad8', belly: '#f2e2b0', eye: '#5a3a2a', tail: 'short', ear: 'small', fierce: true, cannon: true, big: true },
+  };
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
   for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
   for (const k in FOXES) DRAW[k] = (face) => foxSVG(FOXES[k], face);
   for (const k in BIRDS) DRAW[k] = (face) => birdSVG(BIRDS[k], face);
   for (const k in BEASTS) DRAW[k] = (face) => beastSVG(BEASTS[k], face);
   for (const k in LATIS) DRAW[k] = (face) => latiSVG(LATIS[k], face);
+  for (const k in TURTLES) DRAW[k] = (face) => turtleSVG(TURTLES[k], face);
   for (const k in MICE) DRAW[k] = (face) => mouseSVG(MICE[k], face);
   for (const k in BULBS) DRAW[k] = (face) => bulbSVG(BULBS[k], face);
   for (const k in JACKALS) DRAW[k] = (face) => jackalSVG(JACKALS[k], face);
@@ -1065,9 +1102,10 @@
     riolu: '리오르', lucario: '루카리오', megalucario: '메가루카리오',
     bulbasaur: '이상해씨', ivysaur: '이상해풀', venusaur: '이상해꽃',
     pichu: '피츄', pikachu: '피카츄', raichu: '라이츄',
+    squirtle: '꼬부기', wartortle: '어니부기', blastoise: '거북왕',
   };
   const LEGENDS = ['kyogre', 'groudon', 'rayquaza', 'lugia', 'hooh', 'latias', 'latios', 'mew', 'mewtwo', 'raikou', 'entei', 'suicune', 'articuno', 'zapdos', 'moltres'];
-  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160, riolu: 110, lucario: 170, bulbasaur: 100, ivysaur: 150, pichu: 90, pikachu: 150 }; // 진화에 필요한 경험치
+  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160, riolu: 110, lucario: 170, bulbasaur: 100, ivysaur: 150, pichu: 90, pikachu: 150, squirtle: 100, wartortle: 150 }; // 진화에 필요한 경험치
   // 다음 모습 (배열이면 그중 랜덤)
   const NEXT = {
     cosmog: 'cosmoem', cosmoem: ['solgaleo', 'lunala'],
@@ -1077,6 +1115,7 @@
     riolu: 'lucario', lucario: 'megalucario',
     bulbasaur: 'ivysaur', ivysaur: 'venusaur',
     pichu: 'pikachu', pikachu: 'raichu',
+    squirtle: 'wartortle', wartortle: 'blastoise',
   };
   const LINES = {
     cosmog: ['cosmog', 'cosmoem', 'solgaleo', 'lunala'],
@@ -1086,14 +1125,15 @@
     riolu: ['riolu', 'lucario', 'megalucario'],
     bulbasaur: ['bulbasaur', 'ivysaur', 'venusaur'],
     pichu: ['pichu', 'pikachu', 'raichu'],
+    squirtle: ['squirtle', 'wartortle', 'blastoise'],
     legend: LEGENDS,
   };
   // (도감에서는 쓰지 않아요)
-  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', riolu: '👊 리오르 계열', bulbasaur: '🌱 이상해씨 계열', pichu: '⚡ 피츄 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
-  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', riolu: '👊', bulbasaur: '🌱', pichu: '⚡', legend: '⭐' };
+  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', riolu: '👊 리오르 계열', bulbasaur: '🌱 이상해씨 계열', pichu: '⚡ 피츄 계열', squirtle: '💧 꼬부기 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
+  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', riolu: '👊', bulbasaur: '🌱', pichu: '⚡', squirtle: '💧', legend: '⭐' };
   const EGG_HINT = {
     cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋',
-    eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', bulbasaur: '알 속에서 풀 향기가 솔솔 나요 🌱', pichu: '알 속에서 찌릿찌릿 전기가 흘러요 ⚡', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟',
+    eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', bulbasaur: '알 속에서 풀 향기가 솔솔 나요 🌱', pichu: '알 속에서 찌릿찌릿 전기가 흘러요 ⚡', squirtle: '알 속에서 보글보글 물소리가 나요 💧', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟',
   };
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
   const randomLine = () => {
@@ -1102,7 +1142,7 @@
     return k[Math.floor(Math.random() * k.length)];
   };
   const FINALS = Object.values(LINES).flat().filter((k) => !NEED[k] && !LEGENDS.includes(k));
-  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo', riolu: 'dojo', lucario: 'dojo', megalucario: 'aura', bulbasaur: 'forest', ivysaur: 'forest', venusaur: 'forest', raichu: 'spark',
+  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo', riolu: 'dojo', lucario: 'dojo', megalucario: 'aura', bulbasaur: 'forest', ivysaur: 'forest', venusaur: 'forest', raichu: 'spark', blastoise: 'water',
     vaporeon: 'water', jolteon: 'spark', flareon: 'fire', espeon: 'sun', umbreon: 'moon', leafeon: 'forest', glaceon: 'ice', sylveon: 'fairy',
     kyogre: 'water', groudon: 'fire', rayquaza: 'moon', lugia: 'water', hooh: 'sun', latias: 'fairy', latios: 'water',
     mew: 'fairy', mewtwo: 'moon', raikou: 'spark', entei: 'fire', suicune: 'ice', articuno: 'ice', zapdos: 'spark', moltres: 'fire' };
@@ -1115,6 +1155,7 @@
     riolu: '리오—!', lucario: '루카—!', megalucario: '루카리오—!!',
     bulbasaur: '이상해~♪', ivysaur: '이상해풀—!', venusaur: '이상해꽃—!!',
     pichu: '피츄~!', pikachu: '피카피카~!', raichu: '라이츄—!',
+    squirtle: '꼬북꼬북~!', wartortle: '어니부—!', blastoise: '거북왕—!!',
   };
   for (const k of LEGENDS) CRY[k] = NAMES[k].slice(0, 2) + '—!!';
   CRY.mew = '뮤~♪';
@@ -1129,12 +1170,13 @@
     megalucario: '🔵 파동의 힘이 넘쳐흐른다…!',
     venusaur: '🌸 등에서 커다란 꽃이 활짝 피어난다…!',
     raichu: '⚡ 천둥의 돌이 번쩍인다…!',
+    blastoise: '💦 등에서 커다란 대포가 솟아난다…!',
   };
   const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥', hitmonlee: '🦵', hitmonchan: '🥊', hitmontop: '🌀',
     vaporeon: '💧', jolteon: '⚡', flareon: '🔥', espeon: '☀️', umbreon: '🌙', leafeon: '🌿', glaceon: '❄️', sylveon: '🎀',
     kyogre: '🌊', groudon: '🌋', rayquaza: '🐉', lugia: '🌀', hooh: '🌈', latias: '❤️', latios: '💙', mew: '💗', mewtwo: '🔮',
-    raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥', megalucario: '🔵', venusaur: '🌸', raichu: '⚡' };
-  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', riolu: '🍗', bulbasaur: '🥗', pichu: '🍓', legend: '🍎' })[S.line];
+    raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥', megalucario: '🔵', venusaur: '🌸', raichu: '⚡', blastoise: '💦' };
+  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', riolu: '🍗', bulbasaur: '🥗', pichu: '🍓', squirtle: '🍉', legend: '🍎' })[S.line];
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -1147,7 +1189,7 @@
     leafeon: '리프블레이드', glaceon: '눈보라', sylveon: '문포스',
     kyogre: '근원의파동', groudon: '단애의칼', rayquaza: '화룡점정', lugia: '에어로블라스트', hooh: '성스러운불꽃',
     latias: '미스트볼', latios: '라스터퍼지', mew: '사이코키네시스', mewtwo: '사이코브레이크', raikou: '방전',
-    entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트', megalucario: '파동탄', venusaur: '솔라빔', raichu: '10만볼트' };
+    entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트', megalucario: '파동탄', venusaur: '솔라빔', raichu: '10만볼트', blastoise: '하이드로캐논' };
 
   // 이로치(색이 다른 포켓몬) 색 바꾸기: 원래 색 → 이로치 색
   const SHINY = {
@@ -1182,6 +1224,9 @@
     pichu: { '#f6dc4a': '#f6c040' },
     pikachu: { '#f6d23a': '#f0b030' },
     raichu: { '#f0a040': '#f6c878', '#8a5a2a': '#b07a40' },
+    squirtle: { '#7ac8f0': '#9ad8d0', '#b8803a': '#d89a50' },
+    wartortle: { '#8a9ae8': '#9ad0f0', '#b8803a': '#d89a50' },
+    blastoise: { '#5a8ad8': '#a07ad0', '#b8803a': '#d89a50' },
     kyogre: { '#3a6fd8': '#d84aa8', '#e8483a': '#f6d23a' },
     groudon: { '#d8403a': '#d8b040', '#3a3a42': '#4a6a8a' },
     rayquaza: { '#3a9a5a': '#3b3f4e', '#f6d23a': '#ffe066' },
@@ -1719,6 +1764,7 @@
       megalucario: '루카리오가 메가스톤의 힘으로 <b>메가루카리오</b>로 메가진화했어요.',
       venusaur: '이상해풀은 무럭무럭 자라서 <b>이상해꽃</b>으로 진화했어요.',
       raichu: '피카츄는 천둥의 돌의 힘으로 <b>라이츄</b>로 진화했어요.',
+      blastoise: '어니부기는 늠름하게 자라서 <b>거북왕</b>으로 진화했어요.',
       vaporeon: '이브이는 물의 돌의 힘으로 <b>샤미드</b>로 진화했어요.',
       jolteon: '이브이는 천둥의 돌의 힘으로 <b>쥬피썬더</b>로 진화했어요.',
       flareon: '이브이는 불꽃의 돌의 힘으로 <b>부스터</b>로 진화했어요.',
