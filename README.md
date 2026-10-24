@@ -37,7 +37,16 @@
 
 이후 이 브랜치에 푸시할 때마다 자동으로 다시 배포돼요.
 
-### 방법 2: 내 컴퓨터에서 명령어로
+### 방법 2: GitHub에서 자동 배포 (태블릿·폰으로 설정 가능)
+이 브랜치에 올릴 때마다 GitHub Actions(`.github/workflows/deploy-cloudflare.yml`)가 Cloudflare에 배포해요.
+1. Cloudflare 대시보드 → My Profile → API Tokens → Create Token → **Edit Cloudflare Workers** 템플릿으로 토큰 만들기
+2. GitHub 레포 → **Settings → Secrets and variables → Actions → New repository secret** 으로 두 개 추가
+   - `CLOUDFLARE_API_TOKEN`: 만든 토큰
+   - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 대시보드의 Account ID
+3. 레포의 **Actions** 탭 → **Cloudflare 배포** → **Run workflow** (또는 이 브랜치에 새로 올리면 자동 실행)
+4. 끝나면 `https://cosmog-tamagotchi.<계정>.workers.dev` 로 플레이
+
+### 방법 3: 내 컴퓨터에서 명령어로
 ```bash
 npm install
 npx wrangler login
