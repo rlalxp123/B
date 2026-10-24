@@ -1085,12 +1085,364 @@
     megablastoise: { body: '#4a7ad0', belly: '#f2e2b0', eye: '#5a3a2a', tail: 'short', ear: 'small', fierce: true, big: true, mega: true },
   };
 
+  // ---------- 1~155번 포켓몬: 공통 그리기 도구 ----------
+  const gE = (cx, cy, rx, ry, f, t) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}" ${SK}${t ? ` transform="${t}"` : ''}/>`;
+  const gC = (cx, cy, r, f) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}" ${SK}/>`;
+  const gP = (d, f) => `<path d="${d}" fill="${f}" ${SK}/>`;
+  const gL = (d, col, w = 3) => `<path d="${d}" stroke="${col}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const gN = (cx, cy, rx, ry, f, t) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}"${t ? ` transform="${t}"` : ''}/>`;
+  const gR = (x, y, w, h, f, r = 4) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${f}" ${SK}/>`;
+  const leafAt = (x, y, len, rot, f) => `<path d="M${x} ${y}Q${x - len * 0.32} ${y - len * 0.5} ${x} ${y - len}Q${x + len * 0.32} ${y - len * 0.5} ${x} ${y}Z" fill="${f}" ${SK} transform="rotate(${rot} ${x} ${y})"/>`;
+  const star5 = (cx, cy, ro, ri, rot = 0) => {
+    let d = '';
+    for (let i = 0; i < 10; i++) {
+      const a = (Math.PI * i) / 5 - Math.PI / 2 + (rot * Math.PI) / 180, r = i % 2 ? ri : ro;
+      d += `${i ? 'L' : 'M'}${(cx + Math.cos(a) * r).toFixed(1)} ${(cy + Math.sin(a) * r).toFixed(1)}`;
+    }
+    return d + 'Z';
+  };
+  const whisk = (y) => gL(`M64 ${y}l-20 -4M64 ${y + 6}l-20 4M136 ${y}l20 -4M136 ${y + 6}l20 4`, INK, 2);
+  const spiral = (x, y) => gL(`M${x} ${y}m-3 0a3 3 0 1 1 6 0a8 8 0 1 1 -16 0a13 13 0 1 1 26 0a18 18 0 1 1 -36 0`, INK, 3);
+  const vv = (v, o) => (typeof v === 'function' ? v(o) : v || '');
+
+  function gFace(o, face, x1, x2, y, r, my) {
+    let s = '';
+    const e = o.eyes || 'norm';
+    if (e === 'sleepy') s += eyes(x1, x2, y, r, 'closed', INK);
+    else if (e === 'dot') s += face === 'sleep' ? eyes(x1, x2, y, r * 0.6, 'sleep', INK)
+      : `<circle cx="${x1}" cy="${y}" r="${r * 0.5}" fill="${INK}"/><circle cx="${x2}" cy="${y}" r="${r * 0.5}" fill="${INK}"/>`;
+    else if (e === 'daze' || e === 'blank') {
+      s += face === 'sleep' ? eyes(x1, x2, y, r, 'sleep', INK)
+        : [x1, x2].map((x) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>` + (e === 'daze' ? `<circle cx="${x}" cy="${y}" r="${r * 0.25}" fill="${INK}"/>` : '')).join('');
+    } else if (e === 'mono') {
+      s += face === 'sleep' ? gL(`M${100 - r} ${y}q${r} ${r * 0.8} ${2 * r} 0`, INK, 4)
+        : `<circle cx="100" cy="${y}" r="${r * 1.4}" fill="#fff" ${SK}/><circle cx="100" cy="${y}" r="${r * 0.55}" fill="${INK}"/><circle cx="${100 - r * 0.2}" cy="${y - r * 0.25}" r="${r * 0.2}" fill="#fff"/>`;
+    } else if (e !== 'none') s += eyes(x1, x2, y, r, face, o.eyc || INK);
+    if (o.fierce && (e === 'norm') && face === 'normal') s += gL(`M${x1 - r - 2} ${y - r - 7}l${2 * r + 4} 6M${x2 + r + 2} ${y - r - 7}l${-2 * r - 4} 6`, INK, 4.5);
+    if (o.ck) s += `<ellipse cx="${x1 - 12}" cy="${y + 14}" rx="7" ry="4.5" fill="${o.ck}" opacity=".75"/><ellipse cx="${x2 + 12}" cy="${y + 14}" rx="7" ry="4.5" fill="${o.ck}" opacity=".75"/>`;
+    const [m, col] = (o.mouth || 'norm').split(':');
+    if (m === 'norm') s += mouth(100, my, face);
+    else if (m === 'beak') s += gP(`M90 ${my - 12}L100 ${my + 4}L110 ${my - 12}Z`, col || '#f6c040');
+    else if (m === 'bill') s += gE(100, my - 2, 17, 8, col) + gL(`M86 ${my - 2}h28`, INK, 2);
+    else if (m === 'fang') s += mouth(100, my, face) + `<path d="M93 ${my + 1}l3 6 3 -6M101 ${my + 1}l3 6 3 -6" fill="#fff" stroke="${INK}" stroke-width="1.5"/>`;
+    else if (m === 'grin') s += `<path d="M76 ${my - 6}Q100 ${my + 18} 124 ${my - 6}Z" fill="#fff" ${SK}/><path d="M86 ${my - 4}v7M100 ${my - 3}v9M114 ${my - 4}v7" stroke="${INK}" stroke-width="2"/>`;
+    else if (m === 'lips') s += gE(100, my, 10, 6, col) + gL(`M91 ${my}h18`, INK, 2);
+    else if (m === 'nose') s += gE(100, my - 2, 13, 9, col);
+    else if (m === 'big') s += `<path d="M76 ${my - 8}Q100 ${my + 26} 124 ${my - 8}Q100 ${my + 2} 76 ${my - 8}Z" fill="#c83a5a" ${SK}/><path d="M84 ${my - 4}l4 7 4 -6M108 ${my - 3}l4 6 4 -7" fill="#fff" stroke="${INK}" stroke-width="1.5"/>`;
+    else if (m === 'line') s += gL(`M92 ${my}q8 4 16 0`, INK, 3);
+    return s;
+  }
+  function gEars(o) {
+    if (!o.ear) return '';
+    const c = o.ec || o.c, i = o.ei;
+    const one = {
+      tri: gP('M68 76L52 42L88 62Z', c) + (i ? `<path d="M68 68L58 48L82 62Z" fill="${i}"/>` : ''),
+      tall: gP('M70 72L50 12L88 58Z', c) + (i ? `<path d="M70 64L56 26L82 58Z" fill="${i}"/>` : ''),
+      round: gC(66, 62, 15, c) + (i ? `<circle cx="66" cy="62" r="8" fill="${i}"/>` : ''),
+      long: gE(74, 40, 11, 30, c, 'rotate(-15 74 40)') + (i ? gN(74, 44, 5, 20, i, 'rotate(-15 74 40)') : ''),
+      wide: gP('M66 78L14 40Q46 30 90 60Z', c) + (i ? `<path d="M62 72L28 46Q50 42 82 60Z" fill="${i}"/>` : ''),
+      fin: gP('M66 80Q28 62 34 30Q60 44 88 62Z', c),
+      nub: gC(70, 62, 9, c),
+    }[o.ear];
+    return both(one);
+  }
+  function gTail(o) {
+    const c = o.tc || o.c;
+    switch (o.tail) {
+      case 'curl': return tube('M128 166C160 172 170 150 156 140C146 134 140 146 150 150', 7, c);
+      case 'thin': return tube('M126 166C164 170 178 140 170 112', 5, c) + (o.tt ? gC(170, 110, 7, o.tt) : '');
+      case 'fluffy': return gP('M126 162C160 172 188 140 174 106C166 130 150 140 134 140Z', c) + (o.tt ? `<path d="M174 106C182 120 178 136 168 146C172 130 172 118 166 112Z" fill="${o.tt}"/>` : '');
+      case 'flame': return tube('M126 166C156 170 168 150 168 134', 8, c) + flame(168, 132, 9, o.flameC || FIRE);
+      case 'fin': return gP('M128 158C156 158 168 140 176 120L194 134L180 150L196 170L170 160C160 172 140 174 128 170Z', c);
+      case 'stinger': return tube('M126 166C150 172 162 160 168 148', 6, c) + gP('M162 150L186 130L176 160Z', '#e8e8f0');
+      case 'leaf': return gP('M128 166C150 166 160 150 158 130Q180 100 168 76Q140 100 150 132C144 148 136 156 128 160Z', c);
+      case 'multi': return [0, 1, 2].map((i) => gP(`M122 164C${148 + i * 8} ${150 - i * 14} ${156 + i * 10} ${118 - i * 16} ${140 + i * 16} ${92 - i * 10}C${170 + i * 10} ${104 - i * 12} ${176 + i * 8} ${140 - i * 12} 130 ${158 - i * 3}Z`, c)).join('');
+      case 'stub': return gE(134, 168, 10, 6, c);
+      default: return '';
+    }
+  }
+  function gWings(o) {
+    const c = o.wc || o.c, i = o.wi;
+    const one = {
+      bat: gP('M76 122C52 90 24 80 2 86C12 98 10 112 18 120C24 112 34 114 38 124C42 116 54 118 58 130Z', c) + (i ? `<path d="M72 122C54 100 36 94 20 96C26 104 26 112 30 116C34 110 42 114 46 122Z" fill="${i}"/>` : ''),
+      bird: gP('M76 124C48 112 18 84 8 52C24 60 32 58 40 66C42 56 50 54 56 62C60 54 68 56 72 66C80 86 84 102 86 124Z', c),
+      bug: gP('M88 120C60 58 6 48 8 96C10 132 50 140 88 128Z', c) + gP('M88 134C60 142 28 172 46 186C64 196 84 162 92 142Z', c) + (i ? `<circle cx="40" cy="94" r="11" fill="${i}" stroke="${INK}" stroke-width="2"/><circle cx="56" cy="168" r="6" fill="${i}"/>` : ''),
+      clear: `<path d="M86 120C60 76 26 66 16 88C10 110 50 124 86 126Z" fill="#e8f4ff" stroke="${INK}" stroke-width="2.5" opacity=".9"/>`,
+      small: gP('M74 124L48 98L52 118L40 120L64 136Z', c),
+      ptero: gP('M76 120L2 68L22 112L8 124L40 128L30 144L74 140Z', c) + (i ? `<path d="M70 122L20 84L32 112L52 124Z" fill="${i}"/>` : ''),
+    }[o.wing];
+    return one ? both(one) : '';
+  }
+
+  // 몸 모양: biped(두 발) quad(네 발) blob(동글) bird(새) fish(물고기) serpent(뱀) grub(애벌레) flyer(날개 벌레)
+  function monSVG(o, face) {
+    if (o.svg) return o.svg(face, o);
+    const c = o.c, b = o.b, sh = o.shape || 'biped';
+    let s = '', fy, my, dx = o.edx || 18, r = o.er || 8.5;
+    const mid = vv(o.mid, o);
+    if (sh === 'biped' || sh === 'quad') {
+      const k = o.big ? 1.25 : 1, quad = sh === 'quad';
+      s += gTail(o) + gWings(o);
+      if (quad) s += both(gE(62, 174, 12, 13, o.fc || c));
+      s += gE(86, 184, 12 * k, 8, o.fc || c) + gE(114, 184, 12 * k, 8, o.fc || c);
+      s += gE(100, quad ? 154 : 150, (quad ? 38 : 30) * k, 28 * (o.big ? 1.15 : 1), c);
+      if (b) s += gN(100, 158, 19 * k, 18 * (o.big ? 1.2 : 1), b);
+      s += mid;
+      if (!quad && o.arms !== false) { const ax = 70 - (k - 1) * 28; s += both(gE(ax, 146, 7 * k, 12 * k, o.ac || c, `rotate(35 ${ax} 146)`)); }
+      s += gEars(o) + gE(100, 92, 42 * (o.hw || 1), 36 * (o.hh || 1), o.hc || c);
+      fy = 92; my = 110;
+    } else if (sh === 'blob') {
+      s += gTail(o) + gWings(o) + gEars(o);
+      if (o.feet) s += gE(78, 174, 14, 9, o.fc || c) + gE(122, 174, 14, 9, o.fc || c);
+      s += gE(100, 118, 56 * (o.hw || 1), 52 * (o.hh || 1), c);
+      if (b) s += gN(100, 140, 34 * (o.hw || 1), 22, b);
+      s += mid;
+      fy = 108; my = 128; dx = o.edx || 20;
+    } else if (sh === 'bird') {
+      s += gTail(o) + gWings(o) + gL('M90 168v16M110 168v16M82 186h16M102 186h16', o.fc || '#c8a060', 5);
+      s += gE(100, 142, 30, 32, c) + (b ? gN(100, 148, 19, 22, b) : '') + mid;
+      s += gEars(o) + gC(100, 86, 36, o.hc || c);
+      fy = 82; my = 102; dx = 16;
+    } else if (sh === 'fish') {
+      s += gTail(o) + both(gP('M50 122L12 100L20 142Z', o.fin || c)) + (o.noTop ? '' : gP('M78 76Q100 36 126 76Z', o.fin || c));
+      s += gE(100, 120, 58, 48, c) + (b ? gN(100, 140, 38, 22, b) : '') + mid;
+      fy = 108; my = 132; dx = 20;
+    } else if (sh === 'serpent') {
+      const d = o.path || 'M100 116C156 112 166 160 126 170C86 182 48 164 66 138';
+      s += gTail(o) + tube(d, 24, c) + (b ? `<path d="${d}" stroke="${b}" stroke-width="9" fill="none" stroke-linecap="round"/>` : '');
+      s += mid + gEars(o) + gE(100, 84, 38 * (o.hw || 1), 32 * (o.hh || 1), o.hc || c);
+      fy = 82; my = 100;
+    } else if (sh === 'grub') {
+      s += gTail(o) + gE(152, 172, 20, 17, c) + gE(132, 150, 25, 22, c) + (b ? gN(132, 158, 15, 10, b) : '') + mid;
+      s += gEars(o) + gC(94, 100, 42, o.hc || c);
+      fy = 98; my = 118; dx = 16;
+    } else if (sh === 'flyer') {
+      s += gTail(o) + gWings(o) + gE(100, 148, 22, 28, c) + (b ? gN(100, 152, 13, 18, b) : '') + mid;
+      s += gEars(o) + gC(100, 92, 34, o.hc || c);
+      fy = 90; my = 108; dx = 15;
+    }
+    return `<svg viewBox="0 0 200 200">${vv(o.back, o)}${s}${vv(o.head, o)}${gFace(o, face, 100 - dx, 100 + dx, fy + (o.ey || 0), r, my + (o.my || 0))}${vv(o.over, o)}</svg>`;
+  }
+  // 여러 마리를 겹쳐 그리기 (닥트리오, 레어코일 등)
+  const innerOf = (k, face) => DRAW[k](face).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  const group = (...g) => `<svg viewBox="0 0 200 200">${g.join('')}</svg>`;
+  const place = (k, face, x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})">${innerOf(k, face)}</g>`;
+
+  // [키, 이름, 그림 설정]
+  const GEN1 = {
+    caterpie: ['캐터피', { shape: 'grub', c: '#7ac850', b: '#f6e6a0', head: gL('M94 60V44M94 44L82 32M94 44L106 32', '#e8483a', 6) + gN(66, 100, 6, 8, '#f6d23a') }],
+    metapod: ['단데기', { shape: 'blob', c: '#8ac850', hw: 0.72, hh: 1.2, fierce: true, mouth: 'none', mid: gL('M64 128q36 12 72 0M68 152q32 10 64 0', '#5a9a3a', 3) }],
+    butterfree: ['버터플', { shape: 'flyer', c: '#5a5ab8', wing: 'bug', wc: '#f4f4fa', wi: '#c8d0f0', eyc: '#e8483a', er: 11, head: gL('M90 62L80 38M110 62L120 38', INK, 3) + `<circle cx="80" cy="38" r="3" fill="${INK}"/><circle cx="120" cy="38" r="3" fill="${INK}"/>` }],
+    weedle: ['뿔충이', { shape: 'grub', c: '#d8903a', b: '#f2d080', mouth: 'nose:#f07a8a', head: gP('M86 62L94 34L102 62Z', '#e8e8f0'), over: gP('M166 168L190 160L170 182Z', '#e8e8f0') }],
+    kakuna: ['딱충이', { shape: 'blob', c: '#e8c840', hw: 0.72, hh: 1.15, fierce: true, mouth: 'none', mid: gL('M66 126q34 12 68 0M70 150q30 10 60 0', '#b8962a', 3) }],
+    beedrill: ['독침붕', { shape: 'flyer', c: '#f6d23a', wing: 'clear', eyc: '#e8483a', er: 10, fierce: true, mouth: 'none',
+      mid: gL('M80 142h40M82 156h36', INK, 5), head: gL('M90 62L80 40M110 62L120 40', INK, 3),
+      over: both(gP('M70 134L42 172L78 146Z', '#e8e8f0')) + gP('M94 176L100 196L106 176Z', '#e8e8f0') }],
+    pidgey: ['구구', { shape: 'bird', c: '#c8945a', b: '#f2e2c0', wing: 'bird', mouth: 'beak:#8a8a98', head: gP('M92 52Q96 38 110 42Q100 46 106 54Z', '#c8945a') }],
+    pidgeotto: ['피죤', { shape: 'bird', c: '#c8945a', b: '#f2e2c0', wing: 'bird', mouth: 'beak:#c89aa0', fierce: true, back: gP('M88 56Q84 26 104 22Q98 38 110 52Z', '#e8584a') }],
+    pidgeot: ['피죤투', { shape: 'bird', c: '#c8945a', b: '#f2e2c0', wing: 'bird', mouth: 'beak:#c89aa0', fierce: true,
+      back: gP('M90 56Q70 20 112 10Q152 4 166 30Q132 18 114 54Z', '#e8584a') + gP('M110 30Q132 18 160 26Q132 26 116 40Z', '#f6d23a') }],
+    rattata: ['꼬렛', { shape: 'quad', c: '#a070c0', b: '#f2e2c0', ear: 'round', ei: '#f0b0c8', tail: 'curl', mouth: 'fang', eyc: '#e8483a', head: whisk(104) }],
+    raticate: ['레트라', { shape: 'quad', c: '#c89a5a', b: '#f2e2c0', ear: 'round', ei: '#f0b0c8', tail: 'thin', mouth: 'fang', fierce: true, eyc: '#2a1d18', head: whisk(104) }],
+    spearow: ['깨비참', { shape: 'bird', c: '#b87a4a', b: '#f2e2c0', wing: 'bird', wc: '#c8483a', mouth: 'beak:#e8a0a0', fierce: true, back: gP('M90 56L94 40L100 54L106 38L110 56Z', '#c8483a') }],
+    fearow: ['깨비드릴조', { shape: 'bird', c: '#b87a4a', b: '#f2e2c0', wing: 'bird', mouth: 'none', fierce: true,
+      back: gP('M88 56Q90 30 104 22Q102 40 112 54Z', '#c8483a'), over: gP('M92 92L100 138L108 92Z', '#e8a0a0') }],
+    ekans: ['아보', { shape: 'serpent', c: '#9a6ac8', b: '#f6d23a', eyc: '#c89a20', mid: gE(62, 134, 9, 7, '#f6d23a') }],
+    arbok: ['아보크', { shape: 'serpent', c: '#7a4aa8', b: '#f6d23a', eyc: '#c89a20', fierce: true, mouth: 'fang',
+      back: gP('M46 96Q44 36 100 34Q156 36 154 96Q150 136 100 134Q50 136 46 96Z', '#7a4aa8') + gN(62, 98, 10, 16, '#e8483a') + gN(138, 98, 10, 16, '#e8483a') + gN(62, 98, 4, 8, '#f6d23a') + gN(138, 98, 4, 8, '#f6d23a') }],
+    sandshrew: ['모래두지', { c: '#e8c870', b: '#f6eccc', ear: 'nub', tail: 'stub', mid: gN(76, 138, 5, 4, '#b8962a') + gN(124, 140, 5, 4, '#b8962a') }],
+    sandslash: ['고지', { c: '#e8c870', b: '#f6eccc', ear: 'nub', fierce: true, back: `<path d="${sunburst(100, 118, 84, 54, 13)}" fill="#a8783a" ${SK}/>` }],
+    nidoranf: ['니드런♀', { shape: 'quad', c: '#9ac8e8', ear: 'wide', ei: '#3a8ac8', mouth: 'fang', eyc: '#e8483a', head: gP('M94 60L100 46L106 60Z', '#3a7ab8') + gN(76, 80, 5, 4, '#3a7ab8') + gN(126, 78, 5, 4, '#3a7ab8') }],
+    nidorina: ['니드리나', { shape: 'quad', c: '#6aa8d8', ear: 'wide', ei: '#3a7ab8', eyc: '#e8483a', head: gP('M94 60L100 44L106 60Z', '#f2f2f8') + gN(76, 80, 5, 4, '#2a5a98') }],
+    nidoqueen: ['니드퀸', { c: '#5a98c8', b: '#f2e2c0', big: true, ear: 'tri', fierce: true, eyc: '#e8483a', tail: 'thin', back: `<path d="${sunburst(100, 120, 72, 54, 11)}" fill="#3a78a8" ${SK}/>` }],
+    nidoranm: ['니드런♂', { shape: 'quad', c: '#c890d0', ear: 'wide', ei: '#8a3a9a', mouth: 'fang', eyc: '#e8483a', head: gP('M92 62L100 32L108 62Z', '#f2f2f8') + gN(76, 80, 5, 4, '#8a3a9a') }],
+    nidorino: ['니드리노', { shape: 'quad', c: '#b070c0', ear: 'wide', ei: '#6a2a8a', fierce: true, eyc: '#e8483a', head: gP('M90 62L100 24L110 62Z', '#f2f2f8') }],
+    nidoking: ['니드킹', { c: '#8a5ab8', b: '#f2e2c0', big: true, ear: 'tri', fierce: true, eyc: '#e8483a', tail: 'thin', back: `<path d="${sunburst(100, 120, 72, 54, 11)}" fill="#6a3a98" ${SK}/>`, head: gP('M90 60L100 18L110 60Z', '#f2f2f8') }],
+    clefairy: ['삐삐', { c: '#f6b8c8', ear: 'tall', ei: '#a8784a', wing: 'small', ck: '#ff8fb8', tail: 'curl', head: tube('M100 58Q92 42 104 40Q112 44 104 52', 4, '#f6b8c8') }],
+    clefable: ['픽시', { c: '#f6b8c8', ear: 'tall', ei: '#a8784a', wing: 'bird', wc: '#fbe0e8', ck: '#ff8fb8', tail: 'curl', head: tube('M92 58Q84 40 96 38M108 58Q116 40 104 38', 4, '#f6b8c8') }],
+    vulpix: ['식스테일', { shape: 'quad', c: '#d8603a', ear: 'tri', ei: '#8a3a1a', tail: 'multi', tc: '#f08a4a', eyc: '#5a2a1a', head: gP('M84 62Q88 34 104 44Q114 30 120 58Z', '#f08a4a') }],
+    ninetales: ['나인테일', { shape: 'quad', c: '#f2e2b0', ear: 'tall', ei: '#e8c890', tail: 'multi', tc: '#f6eac8', eyc: '#e8483a', head: gP('M84 62Q80 24 104 30Q126 22 120 58Z', '#f6eac8') }],
+    jigglypuff: ['푸린', { shape: 'blob', c: '#f6b0c8', ear: 'tri', ei: '#2a2a33', er: 12, eyc: '#3a9ad8', ck: '#ff8fb8', feet: true, head: tube('M100 70Q88 54 100 48Q112 50 104 60', 6, '#f6b0c8') }],
+    wigglytuff: ['푸크린', { c: '#f6b0c8', b: '#fbe8f0', ear: 'long', ei: '#f8d0e0', eyc: '#3a9ad8', ck: '#ff8fb8', head: tube('M100 58Q90 42 102 38Q112 42 104 50', 5, '#f6b0c8') }],
+    zubat: ['주뱃', { shape: 'flyer', c: '#6a8ad8', wing: 'bat', wi: '#c890d8', ear: 'tall', ei: '#c890d8', eyes: 'none', mouth: 'fang', my: -6, over: tube('M94 172V192M106 172V192', 4, '#6a8ad8') }],
+    golbat: ['골뱃', { shape: 'blob', c: '#6a8ad8', hw: 0.8, hh: 0.85, wing: 'bat', wi: '#c890d8', ear: 'tri', er: 6, ey: -20, fierce: true, mouth: 'big', my: -4 }],
+    oddish: ['뚜벅쵸', { shape: 'blob', c: '#4a6ad8', hw: 0.8, hh: 0.8, feet: true, eyc: '#e8483a', ck: '#ff8fb8', back: [-40, -15, 0, 15, 40].map((r) => leafAt(100, 82, 64, r, '#5ab85a')).join('') }],
+    gloom: ['냄새꼬', { shape: 'blob', c: '#5a5ac8', hw: 0.85, hh: 0.85, feet: true, eyc: '#e8483a',
+      back: gE(66, 70, 26, 16, '#d84a3a', 'rotate(-25 66 70)') + gE(134, 70, 26, 16, '#d84a3a', 'rotate(25 134 70)') + gE(100, 58, 20, 22, '#d84a3a') + gN(64, 70, 5, 4, '#f6a03a') + gN(136, 70, 5, 4, '#f6a03a'), over: gL('M108 134q2 10 -2 16', '#8ac8f0', 3) }],
+    vileplume: ['라플레시아', { shape: 'blob', c: '#4a5ab8', hw: 0.85, hh: 0.8, feet: true, eyc: '#e8483a', ey: 6,
+      back: [0, 72, 144, 216, 288].map((r) => gE(100, 30, 26, 22, '#d8403a', `rotate(${r} 100 64)`) + gN(100, 26, 5, 4, '#fff', `rotate(${r} 100 64)`)).join('') + gC(100, 64, 14, '#8a3a2a') }],
+    paras: ['파라스', { shape: 'quad', c: '#f08a3a', eyc: '#fff', head: gE(70, 62, 20, 13, '#e85a3a') + gE(130, 62, 20, 13, '#e85a3a') + gN(64, 58, 4, 3, '#f6d23a') + gN(136, 58, 4, 3, '#f6d23a') }],
+    parasect: ['파라섹트', { shape: 'quad', c: '#f08a3a', eyes: 'blank', ey: 6, head: gE(100, 66, 72, 34, '#e85a3a') + gN(70, 56, 7, 5, '#f6d23a') + gN(104, 46, 7, 5, '#f6d23a') + gN(134, 60, 7, 5, '#f6d23a') }],
+    venonat: ['콘팡', { shape: 'blob', c: '#8a5ab8', feet: true, er: 15, eyc: '#e8483a', back: `<path d="${sunburst(100, 118, 64, 54, 20)}" fill="#8a5ab8" ${SK}/>`, head: gL('M84 70L72 44M116 70L128 44', INK, 3) }],
+    venomoth: ['도나리', { shape: 'flyer', c: '#8a6ac8', wing: 'bug', wc: '#c8b8e8', wi: '#8a6ac8', eyc: '#3a8ad8', er: 10, head: gL('M90 62L78 38M110 62L122 38', INK, 3) }],
+    diglett: ['디그다', { shape: 'blob', c: '#a8784a', hw: 0.62, hh: 0.95, eyes: 'dot', edx: 12, mouth: 'nose:#f07a8a', ey: -8, my: -10,
+      over: gP('M18 198Q100 150 182 198Z', '#7a5a3a') + gN(60, 186, 7, 4, '#5a4028') + gN(140, 184, 8, 4, '#5a4028') }],
+    dugtrio: ['닥트리오', { c: '#a8784a', svg: (f) => group(place('diglett', f, -26, 20, 0.62), place('diglett', f, 50, 20, 0.62), place('diglett', f, 12, -6, 0.68)) }],
+    meowth: ['나옹', { c: '#f2e2b0', ear: 'tri', ei: '#5a3a2a', tail: 'curl', fc: '#a8784a', head: gC(100, 62, 9, '#f6d23a') + whisk(104) }],
+    persian: ['페르시온', { shape: 'quad', c: '#f2e2b0', ear: 'tri', ei: '#5a3a2a', tail: 'thin', fierce: true, eyc: '#2a1d18', head: gE(100, 64, 6, 5, '#e8483a') + whisk(104) }],
+    psyduck: ['고라파덕', { c: '#f6d23a', eyes: 'daze', mouth: 'bill:#f2e2b0', head: gL('M96 58q-4 -14 0 -22M100 57v-24M104 58q4 -14 0 -22', INK, 3) }],
+    golduck: ['골덕', { c: '#5a8ad8', mouth: 'bill:#f2e2b0', fierce: true, eyc: '#e8483a', tail: 'stub', head: gE(100, 62, 6, 5, '#e8483a') }],
+    mankey: ['망키', { shape: 'blob', c: '#f2e6d8', ear: 'round', ei: '#a8784a', feet: true, fc: '#a8784a', fierce: true, mouth: 'nose:#f0b0a0', my: -4, back: `<path d="${sunburst(100, 118, 64, 54, 22)}" fill="#f2e6d8" ${SK}/>`, over: both(gC(42, 132, 10, '#a8784a')) }],
+    primeape: ['성원숭', { shape: 'blob', c: '#e8dcc8', ear: 'round', ei: '#a8784a', feet: true, fc: '#a8784a', fierce: true, mouth: 'fang', back: `<path d="${sunburst(100, 118, 68, 54, 22)}" fill="#e8dcc8" ${SK}/>`, over: both(gC(38, 128, 13, '#a8784a')) + gE(100, 122, 12, 8, '#f0b0a0') }],
+    growlithe: ['가디', { shape: 'quad', c: '#f08a3a', b: '#f2e2b0', ear: 'tri', ei: '#8a3a1a', tail: 'fluffy', tc: '#f2e2b0', eyc: '#2a1d18', head: gP('M86 60Q96 36 112 56Z', '#f2e2b0'), mid: gL('M70 146l8 6M130 146l-8 6', INK, 4) }],
+    arcanine: ['윈디', { shape: 'quad', c: '#f08a3a', b: '#f2e2b0', big: true, ear: 'tri', ei: '#8a3a1a', tail: 'fluffy', tc: '#f2e2b0', fierce: true, eyc: '#2a1d18', back: `<path d="${sunburst(100, 100, 66, 48, 14)}" fill="#f2e2b0" ${SK}/>`, mid: gL('M64 146l10 6M136 146l-10 6', INK, 4) }],
+    poliwag: ['발챙이', { shape: 'blob', c: '#5a8ad8', b: '#f2f2f8', feet: true, tail: 'fin', tc: '#f2f2f8', mouth: 'lips:#f0a0b0', mid: spiral(100, 142) }],
+    poliwhirl: ['슈륙챙이', { c: '#5a8ad8', b: '#f2f2f8', ac: '#f2f2f8', mouth: 'none', mid: spiral(100, 158) }],
+    poliwrath: ['강챙이', { c: '#3a6ac8', b: '#f2f2f8', big: true, ac: '#f2f2f8', fierce: true, mouth: 'none', mid: spiral(100, 162) }],
+    abra: ['캐이시', { c: '#e8c050', ear: 'tall', eyes: 'sleepy', tail: 'fluffy', mid: gP('M74 132Q100 122 126 132L122 168Q100 174 78 168Z', '#a8784a') }],
+    kadabra: ['윤겔라', { c: '#e8c050', ear: 'tall', fierce: true, eyc: '#2a1d18', tail: 'fluffy', mid: gP('M74 132Q100 122 126 132L122 168Q100 174 78 168Z', '#a8784a'),
+      head: star4(100, 62, 9, '#e8483a') + gL('M88 116q-14 4 -20 16M112 116q14 4 20 16', '#a8784a', 3), over: gL('M136 154L156 112', '#b8b8c8', 4) + gE(158, 106, 7, 9, '#c8c8d8') }],
+    alakazam: ['후딘', { c: '#e8c050', ear: 'tall', fierce: true, eyc: '#2a1d18', mid: gP('M74 132Q100 122 126 132L122 168Q100 174 78 168Z', '#a8784a'),
+      head: gL('M88 114q-18 6 -24 28M112 114q18 6 24 28', '#a8784a', 4), over: both(gL('M62 154L42 112', '#b8b8c8', 4) + gE(40, 106, 7, 9, '#c8c8d8')) }],
+    machop: ['알통몬', { c: '#a0b0c8', fierce: true, eyc: '#e8483a', back: gP('M84 62L88 42L96 58L100 36L104 58L112 42L116 62Z', '#a0b0c8') }],
+    machoke: ['근육몬', { c: '#9a9ad0', big: true, fierce: true, eyc: '#e8483a', mid: gL('M72 160h56', INK, 7), back: gP('M88 62L94 34L100 56L106 34L112 62Z', '#9a9ad0') }],
+    machamp: ['괴력몬', { c: '#8a9ac8', big: true, fierce: true, eyc: '#e8483a', mid: gL('M72 160h56', '#f6d23a', 7), back: gP('M88 62L94 30L100 56L106 30L112 62Z', '#8a9ac8') + both(gE(48, 116, 9, 16, '#8a9ac8', 'rotate(-35 48 116)')) }],
+    bellsprout: ['모다피', { c: '#f6d23a', svg: (f, o) => `<svg viewBox="0 0 200 200">${tube('M100 104C96 130 106 150 100 176', 5, '#7ac850')}${both(leafAt(98, 138, 44, -70, '#5ab85a'))}${gL('M90 184l10 -8 10 8', '#c8964a', 5)}${gP('M62 78Q64 38 100 36Q136 38 138 78Q120 106 100 106Q80 106 62 78Z', o.c)}${gFace(o, f, 86, 114, 66, 7, 88)}</svg>`, mouth: 'lips:#f0a0b0' }],
+    weepinbell: ['우츠동', { shape: 'blob', c: '#f6d23a', hw: 0.85, hh: 1.05, mouth: 'big', fierce: true, back: gL('M100 66q10 -24 28 -28', '#7ac850', 6) + both(leafAt(48, 130, 46, -60, '#5ab85a')) }],
+    victreebel: ['우츠보트', { shape: 'blob', c: '#d8e050', hw: 0.9, hh: 1.1, mouth: 'big', my: 6, back: gP('M40 74Q100 -10 168 70Q140 40 100 50Q60 56 40 74Z', '#5ab85a') + tube('M150 66Q176 60 180 36', 4, '#7a5a3a') }],
+    tentacool: ['왕눈해', { shape: 'blob', c: '#8ac8f0', hw: 0.82, hh: 0.66, ey: 20, my: 18, back: [72, 92, 108, 128].map((x) => tube(`M${x} 142Q${x - 8} 166 ${x + 2} 192`, 4, '#5aa8d8')).join(''), head: gC(80, 100, 9, '#e8483a') + gC(120, 100, 9, '#e8483a') }],
+    tentacruel: ['독파리', { shape: 'blob', c: '#6ab8e8', hw: 0.92, hh: 0.7, ey: 20, my: 18, fierce: true, back: [52, 68, 84, 100, 116, 132, 148].map((x) => tube(`M${x} 142Q${x - 10} 168 ${x + 4} 194`, 4, '#4a98c8')).join(''), head: gC(76, 98, 11, '#e8483a') + gC(124, 98, 11, '#e8483a') + gC(100, 86, 6, '#e8483a') }],
+    geodude: ['꼬마돌', { shape: 'blob', c: '#a0a0a8', hw: 0.78, hh: 0.78, fierce: true, back: both(tube('M58 118Q34 112 30 92', 8, '#a0a0a8') + gC(28, 86, 13, '#a0a0a8')), mid: gL('M74 92l8 6M124 90l-6 8M110 150l8 4', '#7a7a88', 3) }],
+    graveler: ['데구리', { shape: 'blob', c: '#a0a0a8', feet: true, fierce: true, back: `<path d="${sunburst(100, 118, 66, 52, 9)}" fill="#a0a0a8" ${SK}/>` + both(gC(36, 96, 13, '#a0a0a8') + gC(34, 146, 13, '#a0a0a8')) }],
+    golem: ['딱구리', { shape: 'blob', c: '#a8784a', feet: true, fc: '#a0a0a8', fierce: true, ey: 2, back: `<path d="${sunburst(100, 118, 66, 54, 12)}" fill="#8a6a3a" ${SK}/>` + both(gC(40, 124, 14, '#a0a0a8')), head: gE(100, 112, 32, 26, '#a0a0a8') }],
+    ponyta: ['포니타', { shape: 'quad', c: '#f6eccc', ear: 'tri', tail: 'flame', eyc: '#3a2a6a', head: flame(88, 62, 7, FIRE) + flame(102, 58, 9, FIRE) + flame(116, 62, 7, FIRE) }],
+    rapidash: ['날쌩마', { shape: 'quad', c: '#f6eccc', ear: 'tri', tail: 'flame', fierce: true, eyc: '#3a2a6a', back: flame(80, 66, 9, FIRE) + flame(120, 66, 9, FIRE), head: gP('M94 60L100 22L106 60Z', '#e8e8f0') }],
+    slowpoke: ['야돈', { shape: 'quad', c: '#f0a0b8', ear: 'nub', eyes: 'daze', tail: 'thin', tt: '#f6e6e8', head: gN(100, 112, 22, 12, '#f6e6c8'), my: 6 }],
+    slowbro: ['야도란', { c: '#f0a0b8', ear: 'nub', eyes: 'daze', head: gN(100, 112, 22, 12, '#f6e6c8'), my: 6, back: tube('M126 166C160 168 168 140 164 122', 6, '#f0a0b8') + gC(166, 114, 18, '#a0a0b8') + spiral(166, 114) }],
+    magnemite: ['코일', { shape: 'blob', c: '#c8c8d0', hw: 0.58, hh: 0.62, eyes: 'mono', er: 10, ey: 8, mouth: 'none',
+      back: both(gR(26, 104, 26, 22, '#c8c8d0') + gR(22, 100, 10, 10, '#e8483a', 2) + gR(22, 120, 10, 10, '#3a7ad8', 2)), over: gL('M100 86V66', '#a0a0b0', 5) + gC(100, 62, 6, '#c8c8d0') + gL('M76 150l-8 10M124 150l8 10', '#a0a0b0', 4) }],
+    magneton: ['레어코일', { c: '#c8c8d0', svg: (f) => group(place('magnemite', f, -12, 26, 0.6), place('magnemite', f, 92, 26, 0.6), place('magnemite', f, 40, -8, 0.6)) }],
+    farfetchd: ['파오리', { shape: 'bird', c: '#a8784a', b: '#f2e2c0', wing: 'bird', mouth: 'beak:#f6d23a', over: tube('M140 176L178 64', 4, '#7ac850') + gE(180, 56, 9, 14, '#5ab85a') }],
+    doduo: ['두두', { c: '#b8885a', svg: (f, o) => { const h = (x) => tube(`M100 140Q${x} 110 ${x} 74`, 6, o.c) + gC(x, 66, 24, o.c) + gFace({ ...o, mouth: 'beak:#8a8a98' }, f, x - 9, x + 9, 64, 6, 80).replace(/M90 /g, `M${x - 10} `).replace(/L100 /g, `L${x} `).replace(/L110 /g, `L${x + 10} `);
+      return `<svg viewBox="0 0 200 200">${gL('M88 166v20M112 166v20', '#8a8a98', 5)}${gE(100, 148, 34, 26, o.c)}${h(66)}${h(134)}</svg>`; } }],
+    dodrio: ['두트리오', { c: '#a8784a', svg: (f, o) => { const h = (x, y) => tube(`M100 146Q${x} ${y + 40} ${x} ${y}`, 6, o.c) + gC(x, y - 6, 20, o.c) + gFace({ ...o, mouth: 'beak:#8a8a98', fierce: true }, f, x - 8, x + 8, y - 8, 5, y + 6).replace(/M90 /g, `M${x - 10} `).replace(/L100 /g, `L${x} `).replace(/L110 /g, `L${x + 10} `);
+      return `<svg viewBox="0 0 200 200">${gL('M88 170v18M112 170v18', '#8a8a98', 5)}${gE(100, 154, 36, 26, o.c)}${h(52, 82)}${h(100, 50)}${h(148, 82)}</svg>`; } }],
+    seel: ['쥬쥬', { shape: 'blob', c: '#f2f4fa', hw: 0.95, hh: 0.9, mouth: 'fang', eyc: INK, tail: 'fin', back: both(gP('M50 140L18 160L56 160Z', '#f2f4fa')), head: gP('M94 70L100 52L106 70Z', '#f2f4fa') }],
+    dewgong: ['쥬레곤', { shape: 'blob', c: '#f2f4fa', fierce: true, tail: 'fin', back: both(gP('M48 140L10 168L56 162Z', '#f2f4fa')), head: gP('M94 70L100 44L106 70Z', '#f2f4fa') }],
+    grimer: ['질퍽이', { shape: 'blob', c: '#9a6ac8', hh: 0.82, er: 6, mouth: 'big', back: both(tube('M56 130Q40 140 36 160', 7, '#9a6ac8')) + gP('M40 168Q100 156 160 168Q160 184 100 186Q40 184 40 168Z', '#9a6ac8') }],
+    muk: ['질뻐기', { shape: 'blob', c: '#8a5ab8', hw: 1.08, er: 6, mouth: 'big', back: both(tube('M50 120Q24 116 18 96', 9, '#8a5ab8')) + gP('M30 170Q100 152 170 170Q172 190 100 192Q28 190 30 170Z', '#8a5ab8') }],
+    shellder: ['셀러', { c: '#8a6ac8', svg: (f, o) => `<svg viewBox="0 0 200 200">${gP('M24 110Q30 40 100 36Q170 40 176 110Q150 96 100 96Q50 96 24 110Z', o.c)}${gP('M24 120Q50 106 100 106Q150 106 176 120Q170 186 100 186Q30 186 24 120Z', o.c)}${gE(100, 118, 46, 30, '#1d1840')}${gFace({ ...o, eyes: 'blank' }, f, 84, 116, 112, 8, 136)}${gP('M96 128Q104 140 116 136Q110 126 100 126Z', '#e8483a')}</svg>` }],
+    cloyster: ['파르셀', { c: '#6a5aa8', svg: (f, o) => `<svg viewBox="0 0 200 200"><path d="${sunburst(100, 112, 92, 64, 11)}" fill="${o.c}" ${SK}/>${gE(100, 112, 62, 56, o.c)}${gE(100, 112, 44, 40, '#2a2a5a')}${gC(100, 112, 30, '#a0a0b8')}${gFace({ ...o, fierce: true }, f, 90, 110, 106, 6, 124)}</svg>` }],
+    gastly: ['고오스', { shape: 'blob', c: '#3a3a4a', hw: 0.72, hh: 0.72, fierce: true, eyc: '#fff', mouth: 'fang', back: gC(100, 118, 70, '#c0a0e0') + gC(100, 118, 54, '#a080d0') }],
+    haunter: ['고우스트', { shape: 'blob', c: '#8a5ab8', hw: 0.78, hh: 0.8, fierce: true, mouth: 'grin', back: `<path d="${sunburst(100, 112, 66, 46, 7)}" fill="#8a5ab8" ${SK}/>` + gP('M80 150Q100 196 130 186Q110 176 112 150Z', '#8a5ab8'), over: both(gP('M30 126L22 112L34 116L36 104L44 116L48 108L46 130Q36 136 30 126Z', '#8a5ab8')) }],
+    gengar: ['팬텀', { c: '#7a5ab8', big: true, ear: 'tri', fierce: true, eyc: '#e8483a', mouth: 'grin', hw: 1.15, back: `<path d="${sunburst(100, 100, 70, 52, 9)}" fill="#7a5ab8" ${SK}/>` }],
+    onix: ['롱스톤', { c: '#a0a0a8', svg: (f, o) => `<svg viewBox="0 0 200 200">${[[150, 178, 16], [168, 150, 18], [156, 120, 20], [126, 106, 20], [60, 168, 14], [76, 148, 18]].map(([x, y, r]) => gC(x, y, r, o.c)).join('')}${gP('M104 60L116 22L124 60Z', '#a0a0a8')}${gE(100, 88, 40, 32, o.c)}${gFace({ ...o, fierce: true }, f, 82, 118, 86, 8, 104)}</svg>` }],
+    drowzee: ['슬리프', { c: '#e8c050', ear: 'tri', eyes: 'sleepy', fc: '#8a5a3a', mid: gP('M72 158Q100 150 128 158L126 176Q100 182 74 176Z', '#8a5a3a'), head: gE(100, 112, 14, 9, '#e8c050'), my: 10 }],
+    hypno: ['슬리퍼', { c: '#e8c050', ear: 'tri', eyes: 'sleepy', fierce: true, back: `<path d="${sunburst(100, 126, 46, 34, 14)}" fill="#f4f4fa" ${SK}/>`, over: gL('M134 150L150 120', '#a0a0b0', 2) + gC(150, 172, 9, '#c8c8d8') + gL('M134 150L150 164', '#a0a0b0', 2) }],
+    krabby: ['크랩', { shape: 'blob', c: '#e8603a', b: '#f6e6c8', hh: 0.72, feet: true, back: both(tube('M58 110Q40 100 36 84', 6, '#e8603a') + gE(32, 70, 18, 14, '#e8603a') + gP('M22 62L32 50L36 64Z', '#f6e6c8')) }],
+    kingler: ['킹크랩', { shape: 'blob', c: '#e8483a', b: '#f6e6c8', hh: 0.72, feet: true, fierce: true, back: tube('M60 112Q44 100 40 86', 7, '#e8483a') + gE(36, 62, 32, 26, '#e8483a') + gL('M16 56l20 6M18 70l18 -4', '#f6e6c8', 3) + tube('M140 112Q154 104 158 92', 5, '#e8483a') + gE(160, 84, 13, 10, '#e8483a') }],
+    voltorb: ['찌리리공', { c: '#e8483a', svg: (f, o) => `<svg viewBox="0 0 200 200">${gC(100, 118, 60, '#f2f4fa')}${gP('M40 118A60 60 0 0 1 160 118Z', o.c)}${gL('M40 118H160', INK, 3)}${gFace({ ...o, fierce: true, mouth: 'none' }, f, 80, 120, 104, 9, 0)}</svg>` }],
+    electrode: ['붐볼', { c: '#e8483a', svg: (f, o) => `<svg viewBox="0 0 200 200">${gC(100, 118, 62, o.c)}${gP('M38 118A62 62 0 0 1 162 118Z', '#f2f4fa')}${gL('M38 118H162', INK, 3)}${gFace({ ...o, fierce: true, mouth: 'grin' }, f, 80, 120, 102, 9, 136)}</svg>` }],
+    exeggcute: ['아라리', { c: '#f6c8c8', svg: (f, o) => { const egg = (x, y) => gE(x, y, 22, 26, o.c) + gN(x - 6, y - 10, 5, 3, '#fff') + gFace({ ...o, eyes: 'dot', mouth: 'none' }, f, x - 7, x + 7, y, 6, 0);
+      return `<svg viewBox="0 0 200 200">${egg(56, 112)}${egg(100, 104)}${egg(144, 112)}${egg(70, 160)}${egg(116, 160)}${egg(158, 160)}</svg>`; } }],
+    exeggutor: ['나시', { c: '#f6d878', svg: (f, o) => { const nut = (x, y) => gC(x, y, 26, o.c) + gFace({ ...o, fierce: true }, f, x - 9, x + 9, y - 2, 6, y + 12).replace(/M94 /g, `M${x - 6} `).replace(/M92 /g, `M${x - 8} `);
+      return `<svg viewBox="0 0 200 200">${[-60, -30, 0, 30, 60].map((r) => leafAt(100, 92, 90, r, '#5ab85a')).join('')}${gR(82, 120, 36, 56, '#a8784a', 8)}${gE(84, 186, 14, 8, '#a8784a')}${gE(116, 186, 14, 8, '#a8784a')}${nut(64, 96)}${nut(136, 96)}${nut(100, 72)}</svg>`; } }],
+    cubone: ['탕구리', { c: '#c8a070', b: '#f2e6c8', tail: 'stub', ey: 4, head: gP('M56 96Q54 46 100 46Q146 46 144 96Q132 84 100 84Q68 84 56 96Z', '#f4f4fa') + both(gP('M66 58L54 36L80 50Z', '#f4f4fa')), over: gL('M136 152L170 110', '#f4f4fa', 7) + gC(172, 106, 6, '#f4f4fa') }],
+    marowak: ['텅구리', { c: '#b88a5a', b: '#f2e6c8', tail: 'stub', fierce: true, ey: 4, head: gP('M56 96Q54 46 100 46Q146 46 144 96Q132 84 100 84Q68 84 56 96Z', '#f4f4fa') + both(gP('M66 58L50 30L80 50Z', '#f4f4fa')), over: gL('M136 152L176 98', '#f4f4fa', 8) + gC(178, 94, 7, '#f4f4fa') }],
+    lickitung: ['내루미', { c: '#f0a0b8', b: '#f6e6c8', big: true, ear: 'nub', mouth: 'none', mid: gL('M80 152h40M82 166h36', '#e88aa0', 3), over: tube('M100 114Q110 146 136 140Q160 132 150 112', 7, '#e8607a') }],
+    koffing: ['또가스', { shape: 'blob', c: '#8a6ac0', hw: 0.82, hh: 0.82, mouth: 'fang', back: [[50, 80], [150, 78], [54, 156], [148, 158], [100, 60]].map(([x, y]) => gC(x, y, 10, '#8a6ac0')).join(''), mid: gN(100, 150, 8, 6, '#f6eccc') }],
+    weezing: ['또도가스', { c: '#7a5ab0', svg: (f) => group(place('koffing', f, 56, -4, 0.62), place('koffing', f, -16, 30, 0.7)) }],
+    rhyhorn: ['뿔카노', { shape: 'quad', c: '#a0a0b0', fierce: true, eyc: '#e8483a', ear: 'tri', head: gP('M92 62L100 36L108 62Z', '#e8e2d0'), back: `<path d="${sunburst(100, 150, 50, 36, 9)}" fill="#8a8a9a" ${SK}/>` }],
+    rhydon: ['코뿌리', { c: '#a0a0b0', b: '#f2eee0', big: true, ear: 'tri', fierce: true, eyc: '#e8483a', tail: 'thin', head: gP('M92 62L100 26L108 62Z', '#e8e2d0') + gL('M94 50h12M95 40h10', INK, 2) }],
+    chansey: ['럭키', { shape: 'blob', c: '#f6b8c8', ck: '#ff8fb8', feet: true, mid: gE(100, 148, 14, 17, '#fff'), back: both(tube('M50 96Q36 90 34 76', 5, '#f6b8c8')) }],
+    tangela: ['덩쿠리', { shape: 'blob', c: '#4a6ad8', feet: true, fc: '#e8483a', eyes: 'blank', er: 7, mouth: 'none', head: gN(100, 108, 34, 13, '#1d1840'), mid: gL('M60 90q20 20 50 -6M70 140q30 -20 60 6M56 120q30 10 40 -10M120 80q10 30 30 20', '#2a4ab8', 4) }],
+    kangaskhan: ['캥카', { c: '#a8784a', b: '#f2e2b0', big: true, ear: 'tri', fierce: true, tail: 'thin', mid: gC(100, 152, 13, '#a8784a') + `<circle cx="96" cy="150" r="2" fill="${INK}"/><circle cx="104" cy="150" r="2" fill="${INK}"/>` }],
+    horsea: ['쏘드라', { shape: 'serpent', c: '#6ab8e8', b: '#f6e6a0', path: 'M100 116C112 140 120 166 104 180C90 190 80 176 92 168', head: tube('M118 96L144 92', 9, '#6ab8e8'), back: gP('M64 100L40 92L56 116Z', '#f2f4fa') }],
+    seadra: ['시드라', { shape: 'serpent', c: '#4a98d8', b: '#f6e6a0', fierce: true, path: 'M100 116C112 140 120 166 104 180C90 190 80 176 92 168', head: tube('M118 96L148 90', 10, '#4a98d8'), back: both(gP('M64 100L30 82L44 104L26 110L58 120Z', '#f2f4fa')) }],
+    goldeen: ['콘치', { shape: 'fish', c: '#f4f4fa', fin: '#f08a3a', mouth: 'lips:#f0a0b0', tail: 'fin', tc: '#f08a3a', mid: gN(76, 106, 14, 10, '#f08a3a') + gN(126, 140, 16, 10, '#f08a3a'), head: gP('M94 76L100 48L106 76Z', '#f6eccc') }],
+    seaking: ['왕콘치', { shape: 'fish', c: '#f08a3a', fin: '#f4f4fa', mouth: 'lips:#f0a0b0', tail: 'fin', tc: '#f4f4fa', fierce: true, mid: gN(78, 140, 16, 10, '#f4f4fa') + gN(128, 100, 12, 8, '#f4f4fa'), head: gP('M94 76L100 40L106 76Z', '#f6eccc') }],
+    staryu: ['별가사리', { c: '#c8a050', svg: (f, o) => `<svg viewBox="0 0 200 200">${gP(star5(100, 116, 86, 34), o.c)}${gC(100, 114, 18, '#e8483a')}${gC(100, 114, 10, '#f6d23a')}</svg>` }],
+    starmie: ['아쿠스타', { c: '#8a6ac8', svg: (f, o) => `<svg viewBox="0 0 200 200">${gP(star5(100, 114, 84, 32, 36), '#6a4aa8')}${gP(star5(100, 114, 84, 32), o.c)}${gP('M100 92L118 114L100 136L82 114Z', '#e8483a')}${gC(100, 114, 8, '#f6d23a')}</svg>` }],
+    mrmime: ['마임맨', { c: '#f2f4fa', b: '#f0a0b8', ck: '#e8483a', fc: '#5a9ae8', back: both(gC(66, 64, 13, '#5a9ae8')), over: both(gC(54, 156, 14, '#f2f4fa')) }],
+    scyther: ['스라크', { c: '#7ac860', b: '#f2e6b0', wing: 'clear', fierce: true, back: gP('M90 60L100 40L110 60Z', '#7ac860'), over: both(gP('M66 136Q28 124 22 88Q44 112 72 126Z', '#f2f2f8')) }],
+    jynx: ['루주라', { c: '#c8483a', hc: '#9a6ac8', mouth: 'lips:#e8483a', eyc: '#2a2a5a', fc: '#9a6ac8', back: gP('M52 92Q50 36 100 32Q150 36 148 92L158 172Q100 150 42 172Z', '#f6d23a') }],
+    electabuzz: ['에레브', { c: '#f6d23a', fierce: true, tail: 'thin', mid: gL('M74 140l12 6M126 140l-12 6M78 160l10 4M122 160l-10 4', INK, 4), head: gL('M84 60L76 38M116 60L124 38', INK, 4) }],
+    magmar: ['마그마', { c: '#f07a3a', b: '#f6d23a', mouth: 'bill:#f6d23a', fierce: true, tail: 'flame', back: flame(86, 62, 9, FIRE) + flame(100, 56, 12, FIRE) + flame(114, 62, 9, FIRE) }],
+    pinsir: ['쁘사이저', { c: '#a8886a', fierce: true, mouth: 'fang', back: both(gP('M80 66Q54 32 70 4Q78 30 94 54Z', '#e8e8f0') + gL('M68 38l8 -2M70 22l8 0', INK, 2)) }],
+    tauros: ['켄타로스', { shape: 'quad', c: '#a8784a', fierce: true, tail: 'multi', tc: '#5a4a3a', back: both(gP('M66 74Q36 66 36 38Q50 58 76 62Z', '#e8e2d0')), head: gP('M80 64Q100 50 120 64Q100 58 80 64Z', '#5a4a3a') }],
+    magikarp: ['잉어킹', { shape: 'fish', c: '#f05a3a', b: '#f6e6c8', fin: '#f6e6a0', eyes: 'daze', er: 10, mouth: 'lips:#f6e6c8', tail: 'fin', tc: '#f6e6a0', head: gL('M84 132q-20 6 -26 22M116 132q20 6 26 22', '#f6e6a0', 3) }],
+    gyarados: ['갸라도스', { shape: 'serpent', c: '#3a7ac8', b: '#f6e6a0', fierce: true, eyc: '#e8483a', mouth: 'big', my: 2, back: `<path d="${sunburst(100, 70, 50, 30, 7)}" fill="#f4f4fa" ${SK}/>` + both(gL('M70 104q-24 6 -32 26', '#f4f4fa', 4)) }],
+    lapras: ['라프라스', { shape: 'quad', c: '#6aa8e8', b: '#f6e6c8', ear: 'tri', eyc: '#2a2a5a', mid: gE(100, 140, 46, 26, '#a0a0b8') + [76, 100, 124].map((x) => gP(`M${x - 6} 126L${x} 112L${x + 6} 126Z`, '#a0a0b8')).join(''), head: gP('M96 58L100 42L104 58Z', '#a0a0b8') }],
+    ditto: ['메타몽', { shape: 'blob', c: '#c8a0e0', hh: 0.68, ey: 10, eyes: 'dot', er: 13, edx: 14, mouth: 'line', my: -2 }],
+    porygon: ['폴리곤', { c: '#f08aa8', svg: (f, o) => `<svg viewBox="0 0 200 200">${gP('M60 120L100 100L150 120L120 160L70 160Z', '#5ab8e8')}${gP('M70 160L80 186L96 160Z', '#f08aa8')}${gP('M104 160L120 186L130 156Z', '#f08aa8')}${gP('M140 124L182 132L150 150Z', '#5ab8e8')}${gP('M60 70L104 52L140 78L120 108L74 104Z', o.c)}${gP('M56 80L28 96L60 98Z', '#5ab8e8')}${gFace({ ...o, eyes: 'blank', mouth: 'none' }, f, 86, 112, 80, 7, 0)}</svg>` }],
+    omanyte: ['암나이트', { c: '#6ab8e8', svg: (f, o) => `<svg viewBox="0 0 200 200">${[70, 90, 110, 130].map((x) => tube(`M${x} 150Q${x - 6} 172 ${x + 4} 190`, 5, o.c)).join('')}${gE(100, 138, 44, 26, o.c)}${gC(100, 92, 56, '#f2e2b0')}${spiral(104, 88)}${gFace({ ...o, mouth: 'none' }, f, 84, 116, 140, 7, 0)}</svg>` }],
+    omastar: ['암스타', { c: '#5aa8d8', svg: (f, o) => `<svg viewBox="0 0 200 200">${[64, 84, 104, 124, 140].map((x) => tube(`M${x} 150Q${x - 8} 172 ${x + 4} 192`, 5, o.c)).join('')}<path d="${sunburst(100, 88, 74, 52, 9)}" fill="#e8d8a0" ${SK}/>${gC(100, 88, 54, '#f2e2b0')}${spiral(104, 84)}${gE(100, 138, 46, 26, o.c)}${gFace({ ...o, fierce: true, mouth: 'fang' }, f, 84, 116, 138, 7, 150)}</svg>` }],
+    kabuto: ['투구', { c: '#a8784a', svg: (f, o) => `<svg viewBox="0 0 200 200">${gL('M70 160l-8 22M92 166l-4 22M108 166l4 22M130 160l8 22', '#8a6a3a', 5)}${gP('M30 140Q30 60 100 58Q170 60 170 140Z', o.c)}${gP('M30 140Q100 120 170 140Q160 168 100 170Q40 168 30 140Z', '#2a2a33')}${gFace({ ...o, eyc: '#f6c040', mouth: 'none' }, f, 82, 118, 148, 8, 0)}${gL('M70 80q30 -10 60 0', '#8a6a3a', 3)}</svg>` }],
+    kabutops: ['투구푸스', { c: '#a8784a', b: '#e8d8a0', fierce: true, eyc: '#e8483a', mouth: 'none', head: gP('M56 96Q54 50 100 48Q146 50 144 96Q130 82 100 82Q70 82 56 96Z', '#a8784a'), over: both(gP('M66 136Q28 124 22 88Q44 112 72 126Z', '#e8e2d0')) }],
+    aerodactyl: ['프테라', { shape: 'flyer', c: '#a8a0c0', wing: 'ptero', wi: '#c8b8e0', fierce: true, eyc: '#e8483a', mouth: 'fang', tail: 'thin', back: gP('M100 60L80 40L102 50L120 34L108 62Z', '#a8a0c0') }],
+    snorlax: ['잠만보', { shape: 'blob', c: '#3a6a7a', hw: 1.1, b: '#f2e6c8', ear: 'tri', feet: true, fc: '#f2e6c8', eyes: 'sleepy', head: gN(100, 112, 36, 24, '#f2e6c8'), mid: gN(100, 146, 40, 28, '#f2e6c8') }],
+    dratini: ['미뇽', { shape: 'serpent', c: '#8ab8f0', b: '#f2f4fa', ear: 'fin', ec: '#f2f4fa', eyc: '#5a3a6a' }],
+    dragonair: ['신뇽', { shape: 'serpent', c: '#5a9ae8', b: '#f2f4fa', ear: 'fin', ec: '#f2f4fa', eyc: '#5a3a6a', head: gP('M96 54L100 36L104 54Z', '#f2f4fa'), mid: gC(100, 122, 8, '#5ad0f0') + gC(62, 140, 6, '#5ad0f0') }],
+    dragonite: ['망나뇽', { c: '#f6a040', b: '#f6e6a0', big: true, wing: 'small', wc: '#3a9a8a', tail: 'thin', head: gL('M88 60Q80 40 70 36M112 60Q120 40 130 36', INK, 3) + both(gP('M76 62L70 46L84 58Z', '#f6a040')) }],
+    chikorita: ['치코리타', { shape: 'quad', c: '#c8e8a0', eyc: '#e8483a', ck: '#ff8fb8', back: leafAt(100, 64, 70, 20, '#7ac850'), mid: both(gC(70, 132, 5, '#5ab85a')) }],
+    bayleef: ['베이리프', { shape: 'quad', c: '#e8e8a0', eyc: '#e8483a', back: gP('M100 62Q90 20 130 14Q150 30 128 40Q112 42 108 62Z', '#7ac850'), mid: both(gC(66, 128, 8, '#5ab85a')) }],
+    meganium: ['메가니움', { shape: 'quad', c: '#a8d878', big: true, eyc: '#e8483a', back: `<path d="${sunburst(100, 120, 64, 44, 10)}" fill="#f07aa8" ${SK}/>`, head: gL('M86 60L78 36M114 60L122 36', '#f6d23a', 4) }],
+    cyndaquil: ['브케인', { shape: 'quad', c: '#3a5a7a', b: '#f6e0a0', hc: '#3a5a7a', eyes: 'sleepy', back: flame(80, 78, 9, FIRE) + flame(100, 70, 12, FIRE) + flame(120, 78, 9, FIRE), head: gN(100, 112, 30, 14, '#f6e0a0') }],
+  };
+  // 계열: [계열 첫 포켓몬 키, 타입]
+  const GEN1_LINES = [
+    [['caterpie', 'metapod', 'butterfree'], '벌레'], [['weedle', 'kakuna', 'beedrill'], '벌레'], [['pidgey', 'pidgeotto', 'pidgeot'], '노말'],
+    [['rattata', 'raticate'], '노말'], [['spearow', 'fearow'], '노말'], [['ekans', 'arbok'], '독'], [['sandshrew', 'sandslash'], '땅'],
+    [['nidoranf', 'nidorina', 'nidoqueen'], '독'], [['nidoranm', 'nidorino', 'nidoking'], '독'], [['clefairy', 'clefable'], '페어리'],
+    [['vulpix', 'ninetales'], '불꽃'], [['jigglypuff', 'wigglytuff'], '페어리'], [['zubat', 'golbat'], '독'], [['oddish', 'gloom', 'vileplume'], '풀'],
+    [['paras', 'parasect'], '벌레'], [['venonat', 'venomoth'], '벌레'], [['diglett', 'dugtrio'], '땅'], [['meowth', 'persian'], '노말'],
+    [['psyduck', 'golduck'], '물'], [['mankey', 'primeape'], '격투'], [['growlithe', 'arcanine'], '불꽃'], [['poliwag', 'poliwhirl', 'poliwrath'], '물'],
+    [['abra', 'kadabra', 'alakazam'], '에스퍼'], [['machop', 'machoke', 'machamp'], '격투'], [['bellsprout', 'weepinbell', 'victreebel'], '풀'],
+    [['tentacool', 'tentacruel'], '물'], [['geodude', 'graveler', 'golem'], '바위'], [['ponyta', 'rapidash'], '불꽃'], [['slowpoke', 'slowbro'], '물'],
+    [['magnemite', 'magneton'], '전기'], [['farfetchd'], '노말'], [['doduo', 'dodrio'], '노말'], [['seel', 'dewgong'], '물'], [['grimer', 'muk'], '독'],
+    [['shellder', 'cloyster'], '물'], [['gastly', 'haunter', 'gengar'], '고스트'], [['onix'], '바위'], [['drowzee', 'hypno'], '에스퍼'],
+    [['krabby', 'kingler'], '물'], [['voltorb', 'electrode'], '전기'], [['exeggcute', 'exeggutor'], '풀'], [['cubone', 'marowak'], '땅'],
+    [['lickitung'], '노말'], [['koffing', 'weezing'], '독'], [['rhyhorn', 'rhydon'], '땅'], [['chansey'], '노말'], [['tangela'], '풀'],
+    [['kangaskhan'], '노말'], [['horsea', 'seadra'], '물'], [['goldeen', 'seaking'], '물'], [['staryu', 'starmie'], '물'], [['mrmime'], '에스퍼'],
+    [['scyther'], '벌레'], [['jynx'], '얼음'], [['electabuzz'], '전기'], [['magmar'], '불꽃'], [['pinsir'], '벌레'], [['tauros'], '노말'],
+    [['magikarp', 'gyarados'], '물'], [['lapras'], '물'], [['ditto'], '노말'], [['porygon'], '노말'], [['omanyte', 'omastar'], '바위'],
+    [['kabuto', 'kabutops'], '바위'], [['aerodactyl'], '바위'], [['snorlax'], '노말'], [['dratini', 'dragonair', 'dragonite'], '드래곤'],
+    [['chikorita', 'bayleef', 'meganium'], '풀'], [['cyndaquil'], '불꽃'],
+  ];
+  // 타입마다: [알 힌트, 먹이, 기술, 아이콘, 배경]
+  const TYPE_INFO = {
+    풀: ['알 속에서 풀 향기가 솔솔 나요 🌱', '🥗', '솔라빔', '🌿', 'forest'],
+    불꽃: ['알이 따끈따끈 불꽃처럼 뜨거워요 🔥', '🍖', '화염방사', '🔥', 'fire'],
+    물: ['알 속에서 보글보글 물소리가 나요 💧', '🐟', '하이드로펌프', '💧', 'water'],
+    벌레: ['알 속에서 사각사각 소리가 나요 🐛', '🍃', '시저크로스', '🐛', 'forest'],
+    노말: ['알 속에서 콩콩 뛰는 소리가 나요 🐾', '🍙', '파괴광선', '⭐', ''],
+    독: ['알 주위에 보랏빛 연기가 피어올라요 💜', '🍇', '오물폭탄', '💜', 'moon'],
+    전기: ['알 속에서 찌릿찌릿 전기가 흘러요 ⚡', '🍋', '10만볼트', '⚡', 'spark'],
+    땅: ['알 위로 모래가 사르르 흘러내려요 ⛰️', '🥔', '지진', '⛰️', 'dojo'],
+    페어리: ['알 주위에 반짝반짝 요정 가루가 날려요 🎀', '🍰', '문포스', '🎀', 'fairy'],
+    격투: ['알 속에서 쿵쿵 주먹 소리가 나요 🥊', '🍙', '인파이트', '🥊', 'dojo'],
+    에스퍼: ['알이 신비한 힘으로 둥실 떠올라요 🔮', '🍬', '사이코키네시스', '🔮', 'fairy'],
+    바위: ['알이 돌처럼 단단해졌어요 🪨', '🥔', '스톤샤워', '🪨', 'dojo'],
+    고스트: ['알 주위에 으스스한 기운이 감돌아요 👻', '🍬', '섀도볼', '👻', 'moon'],
+    얼음: ['알이 차가운 냉기를 내뿜어요 ❄️', '🍧', '냉동빔', '❄️', 'ice'],
+    드래곤: ['알 속에서 용의 기운이 느껴져요 🐉', '🍖', '역린', '🐉', 'sun'],
+  };
+  const MOVE_SPECIAL = { ditto: '변신', chansey: '알낳기', porygon: '트라이어택', snorlax: '잠자기', gyarados: '파괴광선', alakazam: '사이코키네시스', gengar: '섀도볼', machamp: '폭발펀치', dragonite: '역린' };
+  // 색 돌리기 (이로치용)
+  function hueShift(hex, deg) {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let h = 0, s = 0;
+    if (d) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      h *= 60;
+    }
+    if (s < 0.12) { s = 0.45; } // 회색은 색을 입혀요
+    h = (h + deg + 360) % 360;
+    const C = (1 - Math.abs(2 * l - 1)) * s, X = C * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - C / 2;
+    const [r1, g1, b1] = h < 60 ? [C, X, 0] : h < 120 ? [X, C, 0] : h < 180 ? [0, C, X] : h < 240 ? [0, X, C] : h < 300 ? [X, 0, C] : [C, 0, X];
+    const to = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+    return '#' + to(r1) + to(g1) + to(b1);
+  }
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
   for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
   for (const k in FOXES) DRAW[k] = (face) => foxSVG(FOXES[k], face);
   for (const k in BIRDS) DRAW[k] = (face) => birdSVG(BIRDS[k], face);
   for (const k in BEASTS) DRAW[k] = (face) => beastSVG(BEASTS[k], face);
   for (const k in LATIS) DRAW[k] = (face) => latiSVG(LATIS[k], face);
+  for (const k in GEN1) DRAW[k] = (face) => monSVG({ ...GEN1[k][1], key: k }, face);
   for (const k in TURTLES) DRAW[k] = (face) => turtleSVG(TURTLES[k], face);
   for (const k in MICE) DRAW[k] = (face) => mouseSVG(MICE[k], face);
   for (const k in BULBS) DRAW[k] = (face) => bulbSVG(BULBS[k], face);
@@ -1112,6 +1464,7 @@
     squirtle: '꼬부기', wartortle: '어니부기', blastoise: '거북왕',
     megavenusaur: '메가이상해꽃', megablastoise: '메가거북왕',
   };
+  for (const k in GEN1) NAMES[k] = GEN1[k][0];
   const LEGENDS = ['kyogre', 'groudon', 'rayquaza', 'lugia', 'hooh', 'latias', 'latios', 'mew', 'mewtwo', 'raikou', 'entei', 'suicune', 'articuno', 'zapdos', 'moltres'];
   const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160, riolu: 110, lucario: 170, bulbasaur: 100, ivysaur: 150, pichu: 90, pikachu: 150, squirtle: 100, wartortle: 150, venusaur: 180, blastoise: 180 }; // 진화에 필요한 경험치
   // 다음 모습 (배열이면 그중 랜덤)
@@ -1144,6 +1497,15 @@
     cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋',
     eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', bulbasaur: '알 속에서 풀 향기가 솔솔 나요 🌱', pichu: '알 속에서 찌릿찌릿 전기가 흘러요 ⚡', squirtle: '알 속에서 보글보글 물소리가 나요 💧', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟',
   };
+  // 1~155번 포켓몬 계열 붙이기 (전설은 맨 뒤로)
+  const LINE_TYPE = {};
+  delete LINES.legend;
+  for (const [mons, type] of GEN1_LINES) {
+    LINES[mons[0]] = mons; LINE_TYPE[mons[0]] = type;
+    LINE_ICON[mons[0]] = TYPE_INFO[type][3]; EGG_HINT[mons[0]] = TYPE_INFO[type][0];
+    mons.forEach((k, i) => { if (i < mons.length - 1) { NEXT[k] = mons[i + 1]; NEED[k] = mons.length === 3 ? (i ? 150 : 100) : 120; } });
+  }
+  LINES.legend = LEGENDS;
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
   const randomLine = () => {
     if (Math.random() < LEGEND_CHANCE) return 'legend';
@@ -1187,7 +1549,7 @@
     vaporeon: '💧', jolteon: '⚡', flareon: '🔥', espeon: '☀️', umbreon: '🌙', leafeon: '🌿', glaceon: '❄️', sylveon: '🎀',
     kyogre: '🌊', groudon: '🌋', rayquaza: '🐉', lugia: '🌀', hooh: '🌈', latias: '❤️', latios: '💙', mew: '💗', mewtwo: '🔮',
     raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥', megalucario: '🔵', venusaur: '🌸', raichu: '⚡', blastoise: '💦', megavenusaur: '🌺', megablastoise: '💦' };
-  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', riolu: '🍗', bulbasaur: '🥗', pichu: '🍓', squirtle: '🍉', legend: '🍎' })[S.line];
+  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', riolu: '🍗', bulbasaur: '🥗', pichu: '🍓', squirtle: '🍉', legend: '🍎' })[S.line] || (LINE_TYPE[S.line] ? TYPE_INFO[LINE_TYPE[S.line]][1] : '🍎');
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -1201,6 +1563,12 @@
     kyogre: '근원의파동', groudon: '단애의칼', rayquaza: '화룡점정', lugia: '에어로블라스트', hooh: '성스러운불꽃',
     latias: '미스트볼', latios: '라스터퍼지', mew: '사이코키네시스', mewtwo: '사이코브레이크', raikou: '방전',
     entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트', megalucario: '파동탄', venusaur: '솔라빔', raichu: '10만볼트', blastoise: '하이드로캐논', megavenusaur: '솔라빔', megablastoise: '하이드로캐논' };
+  for (const [mons, type] of GEN1_LINES) {
+    const fin = mons[mons.length - 1], t = TYPE_INFO[type];
+    MOVES[fin] = MOVE_SPECIAL[fin] || t[2]; ICON[fin] = t[3];
+    if (t[4]) BG[fin] = t[4];
+    for (const k of mons) CRY[k] = NAMES[k].slice(0, 2) + '—!';
+  }
 
   // 이로치(색이 다른 포켓몬) 색 바꾸기: 원래 색 → 이로치 색
   const SHINY = {
@@ -1256,6 +1624,11 @@
     zapdos: { '#ffd23a': '#f6b83a', '#ffe680': '#f6d080' },
     moltres: { '#f6c050': '#f6a0a8', '#fbe0a0': '#fbd0d8' },
   };
+  for (const k in GEN1) {
+    const o = GEN1[k][1], m = {};
+    for (const col of [o.c, o.b, o.hc, o.wc, o.tc, o.ec].filter(Boolean)) m[col.toLowerCase()] = hueShift(col, 150);
+    SHINY[k] = m;
+  }
   function petSVG(stage, face, warmth, shiny) {
     if (stage === 'egg') return eggSVG(warmth || 0, S.egg);
     let svg = DRAW[stage](face);
@@ -1699,7 +2072,7 @@
     S.hunger = 70; S.mood = 80; S.clean = 100; S.energy = 100; S.exp = 0;
     S.dex[S.stage] = true;
     S.path = [S.stage]; S.born = Date.now();
-    if (legend) S.raised++;
+    if (!NEED[S.stage]) S.raised++; // 처음부터 다 자란 모습으로 태어나는 포켓몬
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046], 0.12);
@@ -1718,7 +2091,7 @@
     busy = false;
     save(); render();
     say(CRY[S.stage]);
-    if (legend) setTimeout(showFinal, 600);
+    if (!NEED[S.stage]) setTimeout(showFinal, 600);
   }
 
   async function evolve() {
@@ -1727,7 +2100,7 @@
     const from = S.stage;
     const nx = NEXT[from];
     const to = Array.isArray(nx) ? nx[Math.floor(Math.random() * nx.length)] : nx;
-    const mega = to.startsWith('mega');
+    const mega = /^mega(x|y|lucario|venusaur|blastoise)$/.test(to);
     await story(mega
       ? `${josa(S.nick || NAMES[from], '이', '가')} 지닌 메가스톤이 반응했다…!`
       : `어라…!? ${S.nick || NAMES[from]}의 모습이…!`, 1800);
@@ -1788,7 +2161,11 @@
       leafeon: '이브이는 이끼 바위의 힘으로 <b>리피아</b>로 진화했어요.',
       glaceon: '이브이는 얼음 바위의 힘으로 <b>글레이시아</b>로 진화했어요.',
       sylveon: '이브이는 요정의 힘으로 <b>님피아</b>로 진화했어요.',
-    }[S.stage] || `1% 확률로만 만날 수 있는 전설의 포켓몬 <b>${NAMES[S.stage]}</b>${josa(NAMES[S.stage], '이', '가').slice(-1)} 알에서 태어났어요!`;
+    }[S.stage] || (S.line === 'legend'
+      ? `1% 확률로만 만날 수 있는 전설의 포켓몬 <b>${NAMES[S.stage]}</b>${josa(NAMES[S.stage], '이', '가').slice(-1)} 알에서 태어났어요!`
+      : S.path.length > 1
+        ? `${josa(NAMES[S.path[S.path.length - 2]], '은', '는')} 무럭무럭 자라서 <b>${NAMES[S.stage]}</b>${josa(NAMES[S.stage], '으로').slice(NAMES[S.stage].length)} 진화했어요.`
+        : `알에서 <b>${NAMES[S.stage]}</b>${josa(NAMES[S.stage], '이', '가').slice(-1)} 태어났어요!`);
     openModal(`
       <h2>${ICON[S.stage]} ${S.line === 'legend' ? '전설의 ' : ''}${NAMES[S.stage]} 탄생!</h2>
       <div style="height:150px">${petSVG(S.stage, 'happy', 0, S.shiny)}</div>
