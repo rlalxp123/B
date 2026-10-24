@@ -30,7 +30,7 @@
   h1 { margin: 0; font-size: 22px; letter-spacing: -0.5px; }
   .stats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .stats span { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 14px; font-variant-numeric: tabular-nums; }
-  #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: #cbbd9c; touch-action: none; }
+  #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: #3a3029; touch-action: none; }
   canvas { display: block; }
   #overlay {
     position: absolute; inset: 0; display: none;
@@ -38,9 +38,11 @@
     background: rgba(243, 238, 250, 0.93); padding: 16px;
   }
   #overlay.show { display: flex; }
-  #overlay .card { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 360px; }
+  #overlay .card { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 380px; }
   #overlay h2 { margin: 0; font-size: 26px; }
   #overlay p { margin: 0; line-height: 1.5; font-size: 15px; }
+  .foes { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; font-size: 13px; line-height: 1.4; }
+  .foes span { white-space: nowrap; }
   .stars { font-size: 34px; letter-spacing: 4px; color: var(--accent-dark); }
   #toast {
     position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
@@ -80,9 +82,9 @@
     <h1>🌀 뮤츠 동굴찾아가기</h1>
     <div class="stats">
       <span>레벨 <b id="lv">1</b></span>
+      <span><b id="hp">❤️❤️❤️</b></span>
       <span>⏱ <b id="time">0.0</b>초</span>
       <span>🔮 <b id="orbs">0/0</b></span>
-      <span>PP <b id="pp">0</b></span>
     </div>
   </header>
 
@@ -116,6 +118,9 @@
   const cv = $('board');
   const ctx = cv.getContext('2d');
   const wrap = $('wrap');
+  // static layer (floor, decorations, walls) is drawn once per level
+  const bg = document.createElement('canvas');
+  const bctx = bg.getContext('2d');
 
   // dx, dy, wall index (0 top, 1 right, 2 bottom, 3 left), opposite wall
   const DIRS = {
@@ -130,7 +135,24 @@
     W: 'up', S: 'down', A: 'left', D: 'right',
   };
 
+  // name, Korean particles (을/를, 이/가), seconds per step, hit points
+  const FOES = {
+    geodude: { name: '꼬마돌', eul: '을', i: '이', step: 0.8, hp: 1 },
+    grookey: { name: '딱구리', eul: '를', i: '가', step: 0.42, hp: 1 },
+    onix: { name: '롱스톤', eul: '을', i: '이', step: 0.62, hp: 2, passRocks: true },
+    arceus: { name: '아르세우스', eul: '를', i: '가', step: 0.55, hp: Infinity, chase: true },
+  };
+
   const rand = (n) => Math.floor(Math.random() * n);
+
+  function mulberry32(a) {
+    return () => {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
 
   function store(key, val) {
     try {
@@ -160,8 +182,8 @@
       seen[ny][nx] = true;
       stack.push([nx, ny]);
     }
-    // knock out a few extra walls so there are loops (less frustrating)
-    const extra = Math.floor(c * r * 0.05);
+    // a few extra openings make loops, so enemies can be dodged
+    const extra = Math.floor(c * r * 0.07);
     for (let i = 0; i < extra; i++) {
       if (Math.random() < 0.5) {
         const x = rand(c - 1), y = rand(r);
@@ -174,36 +196,41 @@
     return cells;
   }
 
-  // shortest path through walls only (rocks count as breakable)
-  function findPath(from, to) {
+  // shortest path; rocks block only when blockRocks is set
+  function bfs(from, to, blockRocks) {
     const key = (x, y) => y * G.cols + x;
     const prev = new Map([[key(from.x, from.y), null]]);
     const q = [[from.x, from.y]];
+    let found = false;
     while (q.length) {
       const [x, y] = q.shift();
-      if (x === to.x && y === to.y) break;
+      if (x === to.x && y === to.y) { found = true; break; }
       for (const [dx, dy, w] of Object.values(DIRS)) {
         if (G.maze[y][x][w]) continue;
         const nx = x + dx, ny = y + dy, k = key(nx, ny);
         if (prev.has(k)) continue;
+        if (blockRocks && G.rocks.has(k)) continue;
         prev.set(k, [x, y]);
         q.push([nx, ny]);
       }
     }
+    if (!found) return null;
     const path = [];
     let cur = [to.x, to.y];
     while (cur) { path.unshift(cur); cur = prev.get(key(cur[0], cur[1])); }
     return path;
   }
+  const findPath = (from, to) => bfs(from, to, false);
 
   // ---------- state ----------
   const G = {
     level: 1,
     best: parseInt(store('mewtwo-best') || '0', 10) || 0,
-    state: 'menu', // menu | play | win
-    cols: 7, rows: 7, maze: null,
+    state: 'menu', // menu | play | win | over
+    cols: 7, rows: 7, maze: null, seed: 1,
     player: null, home: null,
-    rocks: new Set(), orbs: new Set(), total: 0, got: 0, pp: 0, broken: 0,
+    rocks: new Set(), orbs: new Set(), enemies: [],
+    total: 0, got: 0, pp: 0, broken: 0, defeated: 0, hp: 3, invuln: 0,
     hints: 3, hintUntil: 0,
     t0: 0, elapsed: 0, steps: 0,
     cs: 40, size: 300,
@@ -213,10 +240,17 @@
 
   function newPlayer() { return { x: 0, y: 0, rx: 0, ry: 0, face: 1, dir: 'right' }; }
 
+  function makeEnemy(type, x, y) {
+    const e = { type, x, y, rx: x, ry: y, px: x, py: y, t: Math.random() * 0.5, stun: 0, flash: 0, face: -1, hp: FOES[type].hp };
+    if (type === 'onix') e.body = [0, 1, 2].map(() => ({ x, y, rx: x, ry: y }));
+    return e;
+  }
+
   function newLevel() {
     const n = Math.min(5 + G.level * 2, 25);
     G.cols = n; G.rows = n;
     G.maze = makeMaze(n, n);
+    G.seed = rand(1e9);
     G.player = newPlayer();
     G.home = { x: n - 1, y: n - 1 };
     const isEnd = (x, y) => (x === 0 && y === 0) || (x === G.home.x && y === G.home.y);
@@ -246,11 +280,28 @@
       if (isEnd(x, y) || G.rocks.has(k)) continue;
       G.orbs.add(k);
     }
+
+    // enemies spawn far from the start
+    const types = ['geodude', 'grookey'];
+    if (G.level >= 2) types.push('onix');
+    if (G.level >= 3) types.push('arceus');
+    const pool = ['geodude', 'grookey', 'onix'];
+    for (let i = 0; i < Math.min(G.level - 3, 3); i++) types.push(pool[rand(pool.length)]);
+    const far = [];
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (x + y >= n * 0.75 && !isEnd(x, y) && !G.rocks.has(y * n + x)) far.push([x, y]);
+    }
+    G.enemies = types.map((t) => {
+      const [x, y] = far.splice(rand(far.length), 1)[0];
+      return makeEnemy(t, x, y);
+    });
+
     G.total = G.orbs.size;
-    // enough PP for every rock on the shortest route, plus one spare
+    // enough PP for every rock on the shortest route, plus two spare
     const blocking = findPath(G.player, G.home).filter(([x, y]) => G.rocks.has(y * n + x)).length;
-    G.pp = blocking + 1;
-    G.got = 0; G.broken = 0; G.hints = 3; G.hintUntil = 0;
+    G.pp = blocking + 2;
+    G.hp = 3; G.invuln = 0;
+    G.got = 0; G.broken = 0; G.defeated = 0; G.hints = 3; G.hintUntil = 0;
     G.t0 = 0; G.elapsed = 0; G.steps = 0;
     G.particles = []; G.beams = []; G.queued = null;
     G.state = 'play';
@@ -259,7 +310,7 @@
     updateHud();
   }
 
-  // ---------- movement ----------
+  // ---------- player ----------
   function moving() {
     const p = G.player;
     return Math.abs(p.rx - p.x) + Math.abs(p.ry - p.y) > 0.45;
@@ -294,30 +345,128 @@
     updateHud();
   }
 
+  function enemyAt(x, y) {
+    return G.enemies.find((e) => (e.x === x && e.y === y) || (e.body && e.body.some((b) => b.x === x && b.y === y)));
+  }
+
+  // Psychic travels up to 3 cells and hits the first rock or enemy
   function useSkill() {
     if (G.state !== 'play') return;
     const p = G.player;
     const [dx, dy, w] = DIRS[p.dir];
-    const tx = p.x + dx, ty = p.y + dy;
-    const k = ty * G.cols + tx;
-    const hasRock = !G.maze[p.y][p.x][w] && G.rocks.has(k);
-    if (!hasRock) {
-      G.beams.push({ x0: p.x, y0: p.y, x1: p.x + dx * 0.6, y1: p.y + dy * 0.6, t: 0, miss: true });
-      toast('바라보는 쪽에 바위가 없어요');
+    let x = p.x, y = p.y, target = null, reach = 0;
+    for (let i = 0; i < 3; i++) {
+      if (G.maze[y][x][w]) break;
+      x += dx; y += dy; reach++;
+      const e = enemyAt(x, y);
+      if (e) { target = { e, x, y }; break; }
+      if (G.rocks.has(y * G.cols + x)) { target = { rock: true, x, y }; break; }
+    }
+    if (!target) {
+      const r = reach || 0.6;
+      G.beams.push({ x0: p.x, y0: p.y, x1: p.x + dx * r, y1: p.y + dy * r, t: 0, miss: true });
+      toast('앞에 맞힐 게 없어요');
       return;
     }
     if (G.pp <= 0) { toast('PP가 없어요! 🔮 구슬을 모으세요'); G.bump = 1; return; }
     G.pp--;
-    G.broken++;
-    G.rocks.delete(k);
     if (!G.t0) G.t0 = performance.now();
-    G.beams.push({ x0: p.x, y0: p.y, x1: tx, y1: ty, t: 0 });
-    burst(tx, ty, '#8d8174', 16);
-    burst(tx, ty, '#c79bff', 10);
-    buzz([20, 30, 40]);
+    G.beams.push({ x0: p.x, y0: p.y, x1: target.x, y1: target.y, t: 0 });
+    if (target.rock) {
+      G.broken++;
+      G.rocks.delete(target.y * G.cols + target.x);
+      burst(target.x, target.y, '#8d8174', 16);
+      burst(target.x, target.y, '#c79bff', 10);
+      buzz([20, 30, 40]);
+    } else {
+      hitEnemy(target.e);
+    }
     updateHud();
   }
 
+  function hitEnemy(e) {
+    const F = FOES[e.type];
+    e.flash = 1;
+    burst(e.x, e.y, '#c79bff', 14);
+    buzz([20, 30, 40]);
+    if (F.hp === Infinity) {
+      e.stun = 4;
+      toast('아르세우스는 너무 강해요! 4초 동안 멈췄어요');
+      return;
+    }
+    e.hp--;
+    if (e.hp <= 0) {
+      G.enemies = G.enemies.filter((o) => o !== e);
+      G.defeated++;
+      burst(e.x, e.y, '#ffffff', 18);
+      (e.body || []).forEach((b) => burst(b.x, b.y, '#9a948f', 8));
+      toast(`${F.name}${F.eul} 쓰러뜨렸어요!`);
+    } else {
+      e.stun = 2.5;
+      toast(`${F.name}${F.i} 휘청거려요! 한 번 더!`);
+    }
+  }
+
+  function hurt(e) {
+    const F = FOES[e.type];
+    G.hp--;
+    G.invuln = performance.now() + 1600;
+    G.bump = 1;
+    e.stun = Math.max(e.stun, 1);
+    buzz(120);
+    burst(G.player.x, G.player.y, '#ff6b6b', 12);
+    updateHud();
+    if (G.hp <= 0) { gameOver(F); return; }
+    toast(`아야! ${F.name}에게 부딪혔어요`);
+  }
+
+  // ---------- enemies ----------
+  function stepEnemy(e) {
+    const F = FOES[e.type];
+    const open = Object.values(DIRS).filter(([dx, dy, w]) =>
+      !G.maze[e.y][e.x][w] && (F.passRocks || !G.rocks.has((e.y + dy) * G.cols + (e.x + dx))));
+    if (!open.length) return;
+    let mv = null;
+    if (F.chase) {
+      const path = bfs(e, G.player, true);
+      if (path && path.length > 1 && path.length <= 12) mv = [path[1][0] - e.x, path[1][1] - e.y];
+    }
+    if (!mv) {
+      let fwd = open.filter(([dx, dy]) => !(e.x + dx === e.px && e.y + dy === e.py));
+      if (!fwd.length) fwd = open;
+      const [dx, dy] = fwd[rand(fwd.length)];
+      mv = [dx, dy];
+    }
+    if (e.body) {
+      for (let i = e.body.length - 1; i > 0; i--) { e.body[i].x = e.body[i - 1].x; e.body[i].y = e.body[i - 1].y; }
+      e.body[0].x = e.x; e.body[0].y = e.y;
+    }
+    e.px = e.x; e.py = e.y;
+    e.x += mv[0]; e.y += mv[1];
+    if (mv[0]) e.face = mv[0];
+  }
+
+  function updateEnemies(dt, now) {
+    const lerp = Math.min(1, dt * 10);
+    for (const e of G.enemies) {
+      e.flash = Math.max(0, e.flash - dt * 3);
+      if (G.state === 'play' && G.t0) {
+        if (e.stun > 0) e.stun -= dt;
+        else if ((e.t += dt) >= FOES[e.type].step) { e.t = 0; stepEnemy(e); }
+      }
+      e.rx += (e.x - e.rx) * lerp; e.ry += (e.y - e.ry) * lerp;
+      if (e.body) e.body.forEach((b) => { b.rx += (b.x - b.rx) * lerp; b.ry += (b.y - b.ry) * lerp; });
+    }
+    if (G.state !== 'play' || now < G.invuln) return;
+    const p = G.player;
+    for (const e of G.enemies) {
+      if (e.stun > 0) continue;
+      const parts = [e, ...(e.body || [])];
+      if (parts.some((s) => Math.abs(s.rx - p.rx) + Math.abs(s.ry - p.ry) < 0.6)) { hurt(e); break; }
+    }
+  }
+
+  // ---------- results ----------
   function win() {
     G.state = 'win';
     G.elapsed = (performance.now() - G.t0) / 1000;
@@ -329,10 +478,21 @@
       <h2>⛰️ 동굴에 도착했어요!</h2>
       <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
       <p>레벨 ${G.level} 클리어<br>
-      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음<br>
-      🔮 ${G.got}/${G.total} · 🪨 바위 ${G.broken}개 부숨</p>
+      ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · ❤️ ${G.hp}<br>
+      🔮 ${G.got}/${G.total} · 🪨 ${G.broken}개 부숨 · 💥 적 ${G.defeated}마리</p>
       <button id="nextBtn">다음 레벨 ▶</button>
     `, () => $('nextBtn').onclick = () => { G.level++; newLevel(); }), 700);
+  }
+
+  function gameOver(F) {
+    G.state = 'over';
+    G.elapsed = (performance.now() - G.t0) / 1000;
+    buzz([80, 60, 120]);
+    setTimeout(() => showOverlay(`
+      <h2>😵 뮤츠가 지쳤어요</h2>
+      <p>${F.name}에게 당했어요.<br>적은 🌀 기술로 쓰러뜨리거나 다른 길로 피해 가요.</p>
+      <button id="retryBtn">레벨 ${G.level} 다시 도전</button>
+    `, () => $('retryBtn').onclick = newLevel), 600);
   }
 
   function buzz(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
@@ -425,8 +585,8 @@
 
   function updateHud() {
     $('lv').textContent = G.level;
+    $('hp').textContent = '❤️'.repeat(Math.max(0, G.hp)) + '🖤'.repeat(3 - Math.max(0, G.hp));
     $('orbs').textContent = `${G.got}/${G.total}`;
-    $('pp').textContent = G.pp;
     $('skillBtn').innerHTML = `🌀 사이코키네시스<br><small>PP ${G.pp} 남음</small>`;
     $('skillBtn').disabled = G.state !== 'play';
     $('hintBtn').textContent = `💡 힌트 (${G.hints})`;
@@ -435,12 +595,21 @@
 
   function menu() {
     G.state = 'menu';
-    if (!G.maze) { G.maze = makeMaze(7, 7); G.player = newPlayer(); G.home = { x: 6, y: 6 }; }
+    if (!G.maze) {
+      G.maze = makeMaze(7, 7); G.player = newPlayer(); G.home = { x: 6, y: 6 };
+      G.enemies = [makeEnemy('geodude', 3, 5), makeEnemy('grookey', 5, 2)];
+    }
     showOverlay(`
       <h2>🌀 뮤츠 동굴찾아가기</h2>
       <p>뮤츠를 미로 끝의 <b>동굴 ⛰️</b>까지 데려다 주세요!<br>
-      길을 막는 <b>바위 🪨</b>는 <b>사이코키네시스</b>로 부숴요.<br>
-      기술은 PP를 1 써요. <b>구슬 🔮</b>을 모으면 PP가 1 늘고 별도 더 받아요.</p>
+      <b>바위 🪨</b>와 <b>적</b>은 <b>사이코키네시스</b>(PP 1)로 물리쳐요.<br>
+      <b>구슬 🔮</b>을 모으면 PP가 1 늘고 별도 더 받아요.</p>
+      <div class="foes">
+        <span>🪨 꼬마돌: 느릿느릿</span>
+        <span>🐒 딱구리: 재빨라요</span>
+        <span>🐍 롱스톤: 바위 통과 · 2번 맞혀야 해요</span>
+        <span>✨ 아르세우스: 쫓아와요 · 기술로 잠깐 멈춰요</span>
+      </div>
       ${G.best ? `<p>최고 기록: 레벨 ${G.best}</p>` : ''}
       <button id="startBtn">시작하기</button>
     `, () => $('startBtn').onclick = () => { G.level = 1; newLevel(); });
@@ -451,7 +620,7 @@
   // ---------- layout ----------
   function resize() {
     const maxW = Math.min(document.getElementById('app').clientWidth - 32, 600);
-    const reserved = matchMedia('(min-width: 700px) and (hover: hover)').matches ? 210 : 360;
+    const reserved = matchMedia('(min-width: 700px) and (hover: hover)').matches ? 210 : 370;
     const maxH = window.innerHeight - reserved;
     let size = Math.max(220, Math.min(maxW, maxH));
     G.cs = Math.floor(size / G.cols);
@@ -462,37 +631,147 @@
     cv.style.width = size + 'px'; cv.style.height = size + 'px';
     wrap.style.width = size + 6 + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bg.width = size * dpr; bg.height = size * dpr;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    renderBackground();
   }
   addEventListener('resize', resize);
 
-  // ---------- drawing ----------
-  function drawGround() {
-    const { cs, cols, rows } = G;
+  // ---------- static background ----------
+  function renderBackground() {
+    if (!G.maze) return;
+    const c = bctx, { cs, cols, rows, maze } = G;
+    const R = mulberry32(G.seed);
+    c.clearRect(0, 0, G.size, G.size);
+    const tones = ['#c9b994', '#c3b28c', '#cfc09c', '#bfae88'];
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-      ctx.fillStyle = (x + y) % 2 ? '#d3c6a6' : '#cbbd9c';
-      ctx.fillRect(x * cs, y * cs, cs, cs);
+      const px = x * cs, py = y * cs;
+      c.fillStyle = tones[Math.floor(R() * tones.length)];
+      c.fillRect(px, py, cs, cs);
+      // faint flagstone seams and a soft highlight
+      c.strokeStyle = 'rgba(90, 70, 50, 0.08)';
+      c.lineWidth = 1;
+      c.strokeRect(px + 0.5, py + 0.5, cs - 1, cs - 1);
+      c.fillStyle = 'rgba(255,255,255,0.08)';
+      roundRect(c, px + cs * 0.12, py + cs * 0.12, cs * 0.76, cs * 0.3, cs * 0.12);
+      c.fill();
+      // pebbles
+      const pebbles = Math.floor(R() * 3);
+      for (let i = 0; i < pebbles; i++) {
+        c.fillStyle = R() < 0.5 ? 'rgba(90,70,50,0.25)' : 'rgba(255,255,255,0.25)';
+        c.beginPath();
+        c.ellipse(px + cs * (0.2 + R() * 0.6), py + cs * (0.2 + R() * 0.6), cs * (0.03 + R() * 0.03), cs * 0.025, R() * 3, 0, Math.PI * 2);
+        c.fill();
+      }
+      // cracks
+      if (R() < 0.18) {
+        c.strokeStyle = 'rgba(80,60,40,0.45)';
+        c.lineWidth = Math.max(1, cs * 0.025);
+        c.beginPath();
+        let cx = px + cs * (0.2 + R() * 0.3), cy = py + cs * (0.2 + R() * 0.3);
+        c.moveTo(cx, cy);
+        for (let i = 0; i < 3; i++) { cx += cs * (0.08 + R() * 0.12); cy += cs * (R() * 0.2 - 0.05); c.lineTo(cx, cy); }
+        c.stroke();
+      }
+      // moss
+      if (R() < 0.12) {
+        c.fillStyle = 'rgba(96, 140, 70, 0.55)';
+        const mx = px + cs * (0.25 + R() * 0.5), my = py + cs * (0.25 + R() * 0.5);
+        for (let i = 0; i < 4; i++) {
+          c.beginPath(); c.arc(mx + (R() - 0.5) * cs * 0.2, my + (R() - 0.5) * cs * 0.15, cs * (0.05 + R() * 0.05), 0, Math.PI * 2); c.fill();
+        }
+      }
     }
+    // glowing crystals in dead ends
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      if ((x === 0 && y === 0) || (x === G.home.x && y === G.home.y)) continue;
+      const walls = maze[y][x].reduce((a, b) => a + b, 0);
+      if (walls === 3 && R() < 0.6) drawCrystals(c, x, y, R);
+    }
+    drawWalls(c);
   }
 
-  function drawWalls() {
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function drawCrystals(c, x, y, R) {
+    const { cs } = G;
+    const hue = R() < 0.5 ? ['#c9a2ff', '#8a5cc7'] : ['#9fe3ff', '#3f8fc9'];
+    const bx = (x + 0.25 + R() * 0.5) * cs, by = (y + 0.7) * cs;
+    c.save();
+    c.shadowColor = hue[0];
+    c.shadowBlur = cs * 0.5;
+    for (let i = 0; i < 3; i++) {
+      const ang = (i - 1) * 0.45 + (R() - 0.5) * 0.2;
+      const h = cs * (0.28 + R() * 0.18), w = cs * 0.07;
+      c.save();
+      c.translate(bx + (i - 1) * cs * 0.09, by);
+      c.rotate(ang);
+      c.beginPath();
+      c.moveTo(0, -h); c.lineTo(w, -h * 0.75); c.lineTo(w, 0); c.lineTo(-w, 0); c.lineTo(-w, -h * 0.75); c.closePath();
+      c.fillStyle = hue[1]; c.fill();
+      c.beginPath();
+      c.moveTo(0, -h); c.lineTo(w, -h * 0.75); c.lineTo(w, 0); c.lineTo(0, 0); c.closePath();
+      c.fillStyle = hue[0]; c.fill();
+      c.restore();
+    }
+    c.restore();
+  }
+
+  function wallPath(c) {
     const { cs, cols, rows, maze } = G;
-    ctx.strokeStyle = '#4a3c30';
-    ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(3, cs * 0.16);
-    ctx.beginPath();
+    c.beginPath();
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-      const c = maze[y][x], px = x * cs, py = y * cs;
-      if (c[0]) { ctx.moveTo(px, py); ctx.lineTo(px + cs, py); }
-      if (c[3]) { ctx.moveTo(px, py); ctx.lineTo(px, py + cs); }
-      if (y === rows - 1 && c[2]) { ctx.moveTo(px, py + cs); ctx.lineTo(px + cs, py + cs); }
-      if (x === cols - 1 && c[1]) { ctx.moveTo(px + cs, py); ctx.lineTo(px + cs, py + cs); }
+      const m = maze[y][x], px = x * cs, py = y * cs;
+      if (m[0]) { c.moveTo(px, py); c.lineTo(px + cs, py); }
+      if (m[3]) { c.moveTo(px, py); c.lineTo(px, py + cs); }
+      if (y === rows - 1 && m[2]) { c.moveTo(px, py + cs); c.lineTo(px + cs, py + cs); }
+      if (x === cols - 1 && m[1]) { c.moveTo(px + cs, py); c.lineTo(px + cs, py + cs); }
     }
-    ctx.stroke();
-    ctx.strokeStyle = '#7a6552';
-    ctx.lineWidth = Math.max(1, cs * 0.06);
-    ctx.stroke();
   }
 
+  function drawWalls(c) {
+    const { cs, cols, rows, maze } = G;
+    const lw = Math.max(5, cs * 0.26);
+    c.lineCap = 'round';
+    // drop shadow
+    c.save();
+    c.translate(cs * 0.05, cs * 0.07);
+    wallPath(c); c.strokeStyle = 'rgba(30, 20, 15, 0.45)'; c.lineWidth = lw * 1.1; c.stroke();
+    c.restore();
+    // rock body, then a lit top edge
+    wallPath(c); c.strokeStyle = '#3f3227'; c.lineWidth = lw; c.stroke();
+    c.save();
+    c.translate(-cs * 0.015, -cs * 0.025);
+    wallPath(c); c.strokeStyle = '#7d6752'; c.lineWidth = lw * 0.45; c.stroke();
+    c.restore();
+    // boulders at wall corners
+    for (let y = 0; y <= rows; y++) for (let x = 0; x <= cols; x++) {
+      const touches =
+        (y < rows && x < cols && (maze[y][x][0] || maze[y][x][3])) ||
+        (y > 0 && x < cols && maze[y - 1][x][3]) ||
+        (x > 0 && y < rows && maze[y][x - 1][0]) ||
+        (y === rows && x < cols && maze[y - 1][x][2]) ||
+        (x === cols && y < rows && maze[y][x - 1][1]) ||
+        (y === rows && x > 0 && maze[y - 1][x - 1][2]) ||
+        (x === cols && y > 0 && maze[y - 1][x - 1][1]);
+      if (!touches) continue;
+      const px = x * cs, py = y * cs, r = lw * 0.68;
+      c.fillStyle = '#3e3228';
+      c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#8a735e';
+      c.beginPath(); c.arc(px - r * 0.25, py - r * 0.3, r * 0.45, 0, Math.PI * 2); c.fill();
+    }
+  }
+
+  // ---------- dynamic drawing ----------
   function drawHint(now) {
     if (now > G.hintUntil || G.state !== 'play') return;
     const path = findPath(G.player, G.home);
@@ -500,6 +779,7 @@
     ctx.save();
     ctx.globalAlpha = Math.min(1, (G.hintUntil - now) / 500);
     ctx.strokeStyle = '#f6eaff';
+    ctx.shadowColor = '#b07cff'; ctx.shadowBlur = cs * 0.3;
     ctx.lineWidth = Math.max(3, cs * 0.18);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.setLineDash([cs * 0.25, cs * 0.3]);
@@ -518,21 +798,21 @@
     ctx.translate(cx, cy);
     ctx.scale(s, s);
     ctx.lineJoin = 'round';
+    ctx.fillStyle = 'rgba(30,20,15,0.3)';
+    ctx.beginPath(); ctx.ellipse(0.04, 0.3, 0.36, 0.1, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath();
     const pts = 9;
     for (let i = 0; i < pts; i++) {
       const a = (i / pts) * Math.PI * 2;
-      const r = 0.36 + 0.06 * Math.sin(seed * 3.1 + i * 2.3);
+      const r = 0.36 + 0.05 * Math.sin(seed * 3.1 + i * 2.3);
       const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.85 + 0.04;
       i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
     }
     ctx.closePath();
     ctx.fillStyle = '#9a8f84'; ctx.fill();
     ctx.lineWidth = 0.06; ctx.strokeStyle = '#3e342c'; ctx.stroke();
-    // top highlight
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.beginPath(); ctx.ellipse(-0.1, -0.12, 0.16, 0.08, -0.3, 0, Math.PI * 2); ctx.fill();
-    // cracks
     ctx.strokeStyle = '#5a4e44'; ctx.lineWidth = 0.04;
     ctx.beginPath();
     ctx.moveTo(0.05, -0.25); ctx.lineTo(0.0, -0.08); ctx.lineTo(0.1, 0.05);
@@ -549,36 +829,32 @@
     }
   }
 
-  function drawOrb(cx, cy, s, now, k) {
-    const pulse = 1 + Math.sin(now / 250 + k) * 0.08;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(s * pulse, s * pulse);
-    const g = ctx.createRadialGradient(-0.07, -0.08, 0.02, 0, 0, 0.24);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.35, '#d6b5ff');
-    g.addColorStop(1, '#7a45c2');
-    ctx.fillStyle = 'rgba(199, 155, 255, 0.35)';
-    ctx.beginPath(); ctx.arc(0, 0, 0.32, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 0.04; ctx.strokeStyle = '#4b2580'; ctx.stroke();
-    ctx.restore();
-  }
-
   function drawOrbs(now) {
     const { cs, cols } = G;
     for (const k of G.orbs) {
       const x = k % cols, y = Math.floor(k / cols);
       const bob = Math.sin(now / 300 + k) * cs * 0.05;
-      drawOrb((x + 0.5) * cs, (y + 0.5) * cs + bob, cs, now, k);
+      const pulse = 1 + Math.sin(now / 250 + k) * 0.08;
+      ctx.save();
+      ctx.translate((x + 0.5) * cs, (y + 0.5) * cs + bob);
+      ctx.scale(cs * pulse, cs * pulse);
+      const g = ctx.createRadialGradient(-0.07, -0.08, 0.02, 0, 0, 0.24);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.35, '#d6b5ff');
+      g.addColorStop(1, '#7a45c2');
+      ctx.fillStyle = 'rgba(199, 155, 255, 0.35)';
+      ctx.beginPath(); ctx.arc(0, 0, 0.32, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 0.04; ctx.strokeStyle = '#4b2580'; ctx.stroke();
+      ctx.restore();
     }
   }
 
   function drawCave(now) {
     const { cs } = G;
     const cx = (G.home.x + 0.5) * cs, cy = (G.home.y + 0.5) * cs;
-    const s = cs * 0.9;
+    const s = cs * 0.95;
     ctx.save();
     ctx.translate(cx, cy + s * 0.05);
     const g = 0.5 + 0.5 * Math.sin(now / 400);
@@ -587,7 +863,6 @@
     ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(1.5, s * 0.045);
     ctx.strokeStyle = '#2e2620';
-    // mountain mound
     ctx.fillStyle = '#7d6a58';
     ctx.beginPath();
     ctx.moveTo(-s * 0.46, s * 0.36);
@@ -599,12 +874,10 @@
     ctx.lineTo(s * 0.46, s * 0.36);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
-    // snow / light caps
     ctx.fillStyle = '#a8957f';
     ctx.beginPath();
     ctx.moveTo(-s * 0.22, -s * 0.22); ctx.lineTo(-s * 0.12, -s * 0.36); ctx.lineTo(s * 0.0, -s * 0.27); ctx.closePath();
     ctx.fill();
-    // dark cave mouth with a purple glow inside
     ctx.fillStyle = '#1a1420';
     ctx.beginPath();
     ctx.moveTo(-s * 0.2, s * 0.36);
@@ -617,6 +890,14 @@
     ctx.restore();
   }
 
+  function shadow(s, lift) {
+    ctx.save();
+    ctx.translate(0, lift);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(0, s * 0.42, s * 0.24, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   function drawMewtwo(cx, cy, s, face, now) {
     const float = Math.sin(now / 450) * s * 0.03;
     const lift = G.state === 'win' ? Math.abs(Math.sin(now / 170)) * s * 0.18 + float : float;
@@ -624,26 +905,21 @@
     const L = '#e4ddef', P = '#9a6fcf', K = '#2d2340';
     const lw = Math.max(1.2, s * 0.03);
     ctx.save();
+    if (now < G.invuln && Math.floor(now / 100) % 2) ctx.globalAlpha = 0.35;
+    if (G.state === 'over') ctx.globalAlpha = 0.5;
     ctx.translate(cx + shake, cy - lift);
     ctx.scale(face, 1);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.strokeStyle = K; ctx.lineWidth = lw;
 
-    // psychic aura while casting or celebrating
     const casting = G.beams.some((b) => !b.miss && b.t < 1);
     if (casting || G.state === 'win') {
       ctx.fillStyle = `rgba(170, 120, 240, ${0.25 + 0.1 * Math.sin(now / 60)})`;
       ctx.beginPath(); ctx.ellipse(0, 0, s * 0.5, s * 0.55, 0, 0, Math.PI * 2); ctx.fill();
     }
+    shadow(s, lift);
 
-    // shadow
-    ctx.save();
-    ctx.translate(0, lift);
-    ctx.fillStyle = 'rgba(0,0,0,0.16)';
-    ctx.beginPath(); ctx.ellipse(0, s * 0.43, s * 0.24, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-
-    // thick purple tail curling behind
+    // thick purple tail
     const sway = Math.sin(now / 500) * s * 0.04;
     const tail = () => {
       ctx.beginPath();
@@ -669,7 +945,7 @@
     ctx.beginPath(); ctx.ellipse(s * 0.02, s * 0.3, s * 0.12, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // neck tube from the back of the head to the shoulders
+    // neck tube
     const tube = () => {
       ctx.beginPath();
       ctx.moveTo(-s * 0.12, -s * 0.1);
@@ -679,13 +955,13 @@
     tube(); ctx.lineWidth = Math.max(2, s * 0.045); ctx.strokeStyle = L; ctx.stroke();
     ctx.strokeStyle = K; ctx.lineWidth = lw;
 
-    // arm reaching forward (casts the skill)
+    // arm reaching forward
     const reach = casting ? s * 0.08 : 0;
     ctx.fillStyle = L;
     ctx.beginPath(); ctx.ellipse(s * 0.17 + reach * 0.5, s * 0.12, s * 0.09 + reach * 0.5, s * 0.04, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.arc(s * 0.27 + reach, s * 0.1, s * 0.04, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // horns / ears (blunt, angled out)
+    // horns
     const horn = (x, rot) => {
       ctx.save();
       ctx.translate(x, -s * 0.3);
@@ -701,7 +977,6 @@
     ctx.fillStyle = L;
     ctx.beginPath(); ctx.ellipse(s * 0.01, -s * 0.16, s * 0.2, s * 0.17, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // serious almond eyes with purple irises
     const eye = (ex, tilt) => {
       ctx.save();
       ctx.translate(ex, -s * 0.16);
@@ -717,16 +992,228 @@
     };
     eye(-s * 0.05, 0.22);
     eye(s * 0.11, -0.22);
-    // brow ridges
     ctx.lineWidth = Math.max(1, s * 0.025);
     ctx.beginPath();
     ctx.moveTo(-s * 0.1, -s * 0.215); ctx.lineTo(-s * 0.005, -s * 0.195);
     ctx.moveTo(s * 0.06, -s * 0.195); ctx.lineTo(s * 0.16, -s * 0.215);
     ctx.stroke();
-    // small mouth
     ctx.beginPath(); ctx.moveTo(s * 0.03, -s * 0.07); ctx.lineTo(s * 0.08, -s * 0.075); ctx.stroke();
-
     ctx.restore();
+  }
+
+  // --- enemy sprites (all drawn facing right, flipped by caller) ---
+  function drawGeodude(s, now, K) {
+    const flex = Math.sin(now / 200) * s * 0.03;
+    const lift = s * 0.08 + Math.sin(now / 300) * s * 0.03;
+    shadow(s, lift);
+    ctx.translate(0, -lift);
+    const R = '#a39b90';
+    ctx.fillStyle = R;
+    // arms with fists raised
+    for (const side of [-1, 1]) {
+      ctx.beginPath(); ctx.ellipse(side * s * 0.3, -s * 0.02, s * 0.12, s * 0.065, side * -0.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(side * s * 0.4, -s * 0.16 - flex * side, s * 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(side * s * 0.36, -s * 0.2 - flex * side); ctx.lineTo(side * s * 0.44, -s * 0.18 - flex * side); ctx.stroke();
+    }
+    // round rocky body
+    ctx.beginPath(); ctx.arc(0, s * 0.05, s * 0.27, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(70,60,50,0.3)';
+    [[-0.12, 0.2], [0.14, 0.18], [-0.16, -0.08], [0.06, 0.26]].forEach(([x, y]) => {
+      ctx.beginPath(); ctx.arc(s * x, s * y, s * 0.025, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(-s * 0.08, -s * 0.1, s * 0.1, s * 0.05, -0.4, 0, Math.PI * 2); ctx.fill();
+    // angry face
+    ctx.fillStyle = K;
+    ctx.beginPath(); ctx.ellipse(-s * 0.06, s * 0.03, s * 0.03, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.03, s * 0.03, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, s * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.13, -s * 0.05); ctx.lineTo(-s * 0.01, -s * 0.0);
+    ctx.moveTo(s * 0.17, -s * 0.05); ctx.lineTo(s * 0.05, -s * 0.0);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1, s * 0.025);
+    ctx.beginPath(); ctx.moveTo(-s * 0.02, s * 0.15); ctx.quadraticCurveTo(s * 0.02, s * 0.11, s * 0.07, s * 0.15); ctx.stroke();
+  }
+
+  function drawGrookey(s, now, K) {
+    const hop = Math.abs(Math.sin(now / 110)) * s * 0.06;
+    shadow(s, hop);
+    ctx.translate(0, -hop);
+    const GR = '#5fb33a', TAN = '#f1c58f', BR = '#8a5a2b';
+    // tail
+    ctx.strokeStyle = K; ctx.lineWidth = Math.max(3, s * 0.07);
+    ctx.beginPath(); ctx.moveTo(-s * 0.12, s * 0.28); ctx.quadraticCurveTo(-s * 0.42, s * 0.3, -s * 0.34, s * 0.02); ctx.stroke();
+    ctx.strokeStyle = BR; ctx.lineWidth = Math.max(1.5, s * 0.04); ctx.stroke();
+    ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03);
+    // feet and body
+    ctx.fillStyle = TAN;
+    ctx.beginPath(); ctx.ellipse(-s * 0.08, s * 0.38, s * 0.07, s * 0.04, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 0.09, s * 0.38, s * 0.07, s * 0.04, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = GR;
+    ctx.beginPath(); ctx.ellipse(0, s * 0.22, s * 0.15, s * 0.15, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = TAN;
+    ctx.beginPath(); ctx.ellipse(s * 0.02, s * 0.25, s * 0.08, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
+    // stick on head
+    ctx.strokeStyle = K; ctx.lineWidth = Math.max(2.5, s * 0.055);
+    ctx.beginPath(); ctx.moveTo(s * 0.02, -s * 0.28); ctx.lineTo(s * 0.12, -s * 0.52); ctx.stroke();
+    ctx.strokeStyle = BR; ctx.lineWidth = Math.max(1.2, s * 0.03); ctx.stroke();
+    ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03);
+    ctx.fillStyle = '#7fd04a';
+    ctx.beginPath(); ctx.ellipse(s * 0.17, -s * 0.5, s * 0.07, s * 0.035, -0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // ears
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = TAN;
+      ctx.beginPath(); ctx.arc(side * s * 0.25 + s * 0.02, -s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e39a5a';
+      ctx.beginPath(); ctx.arc(side * s * 0.25 + s * 0.02, -s * 0.1, s * 0.045, 0, Math.PI * 2); ctx.fill();
+    }
+    // head with hair tuft
+    ctx.fillStyle = GR;
+    ctx.beginPath(); ctx.arc(s * 0.02, -s * 0.1, s * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.12, -s * 0.26); ctx.lineTo(-s * 0.06, -s * 0.38); ctx.lineTo(0, -s * 0.28); ctx.lineTo(s * 0.06, -s * 0.36); ctx.lineTo(s * 0.1, -s * 0.27);
+    ctx.fill(); ctx.stroke();
+    // face patch
+    ctx.fillStyle = TAN;
+    ctx.beginPath(); ctx.ellipse(s * 0.04, -s * 0.05, s * 0.16, s * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = K;
+    for (const ex of [-s * 0.03, s * 0.1]) {
+      ctx.beginPath(); ctx.ellipse(ex, -s * 0.08, s * 0.035, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#fff';
+    for (const ex of [-s * 0.04, s * 0.09]) {
+      ctx.beginPath(); ctx.arc(ex, -s * 0.1, s * 0.013, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#e46a5a';
+    ctx.beginPath(); ctx.ellipse(s * 0.04, s * 0.01, s * 0.05, s * 0.03, 0, 0, Math.PI); ctx.fill(); ctx.stroke();
+  }
+
+  function drawOnixPart(s, r, head, now, K) {
+    const STONE = '#9a948f';
+    ctx.fillStyle = STONE;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.35, r * 0.4, r * 0.2, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(60,50,45,0.3)';
+    ctx.beginPath(); ctx.arc(r * 0.3, r * 0.3, r * 0.12, 0, Math.PI * 2); ctx.fill();
+    if (!head) return;
+    // horn
+    ctx.fillStyle = STONE;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.4, -r * 0.8); ctx.quadraticCurveTo(-r * 0.7, -r * 1.6, -r * 1.1, -r * 1.5); ctx.quadraticCurveTo(-r * 0.6, -r * 1.1, -r * 0.1, -r * 0.95);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // eye and mouth
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(r * 0.35, -r * 0.15, r * 0.25, r * 0.15, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = K;
+    ctx.beginPath(); ctx.arc(r * 0.42, -r * 0.13, r * 0.09, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, s * 0.035);
+    ctx.beginPath(); ctx.moveTo(r * 0.1, -r * 0.42); ctx.lineTo(r * 0.62, -r * 0.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(r * 0.2, r * 0.4); ctx.lineTo(r * 0.85, r * 0.25); ctx.stroke();
+  }
+
+  function drawArceus(s, now, K) {
+    const lift = s * 0.06 + Math.sin(now / 380) * s * 0.03;
+    const glow = 0.5 + 0.5 * Math.sin(now / 300);
+    ctx.fillStyle = `rgba(255, 220, 110, ${0.18 + 0.15 * glow})`;
+    ctx.beginPath(); ctx.arc(0, -s * 0.05, s * 0.55, 0, Math.PI * 2); ctx.fill();
+    shadow(s, lift);
+    ctx.translate(0, -lift);
+    const W = '#f6f3ea', GY = '#aba79d', GOLD = '#e8c04a';
+    // legs with gold hooves
+    for (const lx of [-s * 0.16, -s * 0.02, s * 0.12]) {
+      ctx.fillStyle = W;
+      ctx.beginPath(); ctx.ellipse(lx, s * 0.3, s * 0.045, s * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = GOLD;
+      ctx.beginPath(); ctx.ellipse(lx, s * 0.39, s * 0.05, s * 0.03, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    // body
+    ctx.fillStyle = W;
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.12, s * 0.27, s * 0.16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.12, s * 0.27, s * 0.16, 0, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = GY; ctx.fillRect(-s * 0.3, s * 0.17, s * 0.6, s * 0.2);
+    ctx.restore();
+    // golden ring around the waist
+    ctx.lineWidth = Math.max(3, s * 0.08);
+    ctx.strokeStyle = K;
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.1, s * 0.36, s * 0.12, 0, Math.PI * 0.05, Math.PI * 0.95); ctx.stroke();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = Math.max(1.8, s * 0.045); ctx.stroke();
+    ctx.lineWidth = Math.max(1.2, s * 0.03); ctx.strokeStyle = K;
+    for (const a of [0.2, 0.5, 0.8]) {
+      const x = -s * 0.02 + Math.cos(Math.PI * a) * s * 0.36, y = s * 0.1 + Math.sin(Math.PI * a) * s * 0.12;
+      ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(x, y, s * 0.04, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#3fbf73'; ctx.beginPath(); ctx.arc(x, y, s * 0.015, 0, Math.PI * 2); ctx.fill();
+    }
+    // neck and swept-back crest
+    ctx.fillStyle = W;
+    ctx.beginPath(); ctx.ellipse(s * 0.12, -s * 0.06, s * 0.08, s * 0.13, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(s * 0.06, -s * 0.22);
+    ctx.quadraticCurveTo(-s * 0.08, -s * 0.38, -s * 0.24, -s * 0.5);
+    ctx.quadraticCurveTo(-s * 0.04, -s * 0.44, s * 0.16, -s * 0.3);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // head
+    ctx.beginPath(); ctx.ellipse(s * 0.18, -s * 0.2, s * 0.13, s * 0.11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(s * 0.18, -s * 0.2, s * 0.13, s * 0.11, 0, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = GY; ctx.fillRect(s * 0.12, -s * 0.2, s * 0.25, s * 0.2);
+    ctx.restore();
+    // green eye with red pupil
+    ctx.fillStyle = '#3fbf73';
+    ctx.beginPath(); ctx.ellipse(s * 0.22, -s * 0.22, s * 0.04, s * 0.03, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#d2342c';
+    ctx.beginPath(); ctx.arc(s * 0.235, -s * 0.22, s * 0.015, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawEnemy(e, now) {
+    const { cs } = G;
+    const s = cs * 0.92;
+    const K = '#2d2340';
+    const blink = e.flash > 0 && Math.floor(now / 70) % 2;
+    const drawAt = (x, y, fn) => {
+      ctx.save();
+      ctx.translate((x + 0.5) * cs, (y + 0.5) * cs);
+      ctx.scale(e.face, 1);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.strokeStyle = K; ctx.lineWidth = Math.max(1.2, s * 0.03);
+      if (blink) ctx.globalAlpha = 0.4;
+      fn();
+      ctx.restore();
+    };
+    if (e.type === 'onix') {
+      for (let i = e.body.length - 1; i >= 0; i--) {
+        const b = e.body[i];
+        drawAt(b.rx, b.ry, () => drawOnixPart(s, s * (0.24 - i * 0.03), false, now, K));
+      }
+      drawAt(e.rx, e.ry, () => { ctx.translate(0, -s * 0.04); drawOnixPart(s, s * 0.3, true, now, K); });
+    } else {
+      drawAt(e.rx, e.ry, () => ({ geodude: drawGeodude, grookey: drawGrookey, arceus: drawArceus })[e.type](s, now, K));
+    }
+    // dizzy stars while stunned
+    if (e.stun > 0) {
+      ctx.save();
+      ctx.translate((e.rx + 0.5) * cs, (e.ry + 0.1) * cs);
+      ctx.fillStyle = '#ffe14d';
+      ctx.strokeStyle = K; ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const a = now / 200 + (i * Math.PI * 2) / 3;
+        const x = Math.cos(a) * s * 0.28, y = Math.sin(a) * s * 0.08 - s * 0.3;
+        star(x, y, s * 0.07);
+      }
+      ctx.restore();
+    }
+  }
+
+  function star(x, y, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r;
+      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 
   function drawBeams(dt) {
@@ -739,6 +1226,7 @@
       const x1 = (b.x1 + 0.5) * cs, y1 = (b.y1 + 0.5) * cs;
       ctx.save();
       ctx.globalAlpha = a;
+      ctx.shadowColor = '#b07cff'; ctx.shadowBlur = cs * 0.4;
       ctx.strokeStyle = '#b07cff';
       ctx.lineCap = 'round';
       ctx.lineWidth = cs * 0.28 * a + 2;
@@ -746,7 +1234,6 @@
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = cs * 0.08 * a + 1;
       ctx.stroke();
-      // expanding psychic rings at the target
       for (let i = 0; i < 3; i++) {
         const r = cs * (0.15 + b.t * 0.6 + i * 0.15);
         ctx.strokeStyle = i % 2 ? '#e6d2ff' : '#8a5cc7';
@@ -771,6 +1258,18 @@
     ctx.globalAlpha = 1;
   }
 
+  // cave lighting: bright around Mewtwo, darker toward the edges
+  function drawLighting() {
+    const { cs, size } = G;
+    const p = G.player;
+    const px = (p.rx + 0.5) * cs, py = (p.ry + 0.5) * cs;
+    const g = ctx.createRadialGradient(px, py, cs * 1.8, px, py, size * 0.85);
+    g.addColorStop(0, 'rgba(25, 12, 40, 0)');
+    g.addColorStop(1, 'rgba(25, 12, 40, 0.5)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  }
+
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -787,10 +1286,11 @@
       }
     }
     G.bump = Math.max(0, G.bump - dt * 4);
+    if (G.maze) updateEnemies(dt, now);
 
     if (G.state === 'play' && G.t0) {
       $('time').textContent = ((now - G.t0) / 1000).toFixed(1);
-    } else if (G.state === 'win') {
+    } else if (G.state === 'win' || G.state === 'over') {
       $('time').textContent = G.elapsed.toFixed(1);
     } else if (!G.t0) {
       $('time').textContent = '0.0';
@@ -798,15 +1298,16 @@
 
     if (G.maze) {
       ctx.clearRect(0, 0, G.size, G.size);
-      drawGround();
+      ctx.drawImage(bg, 0, 0, G.size, G.size);
       drawHint(now);
-      drawWalls();
       drawRocks();
       drawOrbs(now);
       drawCave(now);
+      G.enemies.forEach((e) => drawEnemy(e, now));
       drawBeams(dt);
       drawMewtwo((p.rx + 0.5) * G.cs, (p.ry + 0.5) * G.cs, G.cs * 0.92, p.face, now);
       drawParticles(dt * 4);
+      drawLighting();
     }
     requestAnimationFrame(frame);
   }
