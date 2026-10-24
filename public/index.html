@@ -82,6 +82,7 @@
   #screen.fire { background: radial-gradient(circle at 50% 120%, #ff7a3c 0 30%, transparent 60%), linear-gradient(#ffd6a0, #ff9f7a); }
   #screen.bluefire { background: radial-gradient(circle at 50% 120%, #3aa8ff 0 25%, transparent 60%), linear-gradient(#141a3c, #2a4f9a); }
   #screen.bluefire .twinkle { opacity: 1; }
+  #screen.dojo { background: linear-gradient(#fff1d6 0 62%, #e0a868 62% 64%, #c98a4b 64%); }
   #sky { position: absolute; inset: 0; pointer-events: none; }
   .twinkle { position: absolute; color: #fff; font-size: 10px; opacity: 0; animation: tw 3s infinite; }
   #screen.night .twinkle, #screen.moon .twinkle { opacity: 1; }
@@ -458,34 +459,117 @@
       wing: { frame: '#f59a45', inner: '#2b7a8a', big: true } },
   };
 
+  // 배루키 계열
+  const SK = `stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"`;
+  const fierce = (face) => face === 'normal'
+    ? `<path d="M68 72l22 8M132 72l-22 8" stroke="${INK}" stroke-width="4.5" stroke-linecap="round"/>` : '';
+
+  function tyrogueSVG(face) {
+    const c = '#dcc4e2';
+    return `<svg viewBox="0 0 200 200">
+      <rect x="80" y="156" width="14" height="26" rx="6" fill="${c}" ${SK}/><rect x="106" y="156" width="14" height="26" rx="6" fill="${c}" ${SK}/>
+      <ellipse cx="84" cy="186" rx="15" ry="8" fill="#8a5a3a" ${SK}/><ellipse cx="116" cy="186" rx="15" ry="8" fill="#8a5a3a" ${SK}/>
+      <path d="M60 118Q46 134 54 152" stroke="${INK}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M60 118Q46 134 54 152" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M140 118Q154 134 146 152" stroke="${INK}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M140 118Q154 134 146 152" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <circle cx="54" cy="154" r="9" fill="${c}" ${SK}/><circle cx="146" cy="154" r="9" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="134" rx="30" ry="24" fill="${c}" ${SK}/>
+      <path d="M70 142Q100 134 130 142L128 164Q100 172 72 164Z" fill="#8a5a3a" ${SK}/>
+      <path d="M72 70L74 30L90 52L100 18L110 52L126 30L128 70Z" fill="${c}" ${SK}/>
+      <circle cx="100" cy="88" r="44" fill="${c}" ${SK}/>
+      ${eyes(82, 118, 88, 9, face, '#e8c23a')}${fierce(face)}
+      ${mouth(100, 110, face)}
+    </svg>`;
+  }
+  function hitmonleeSVG(face) {
+    const c = '#b89878', band = '#efe2c4';
+    const leg = (x) => `<rect x="${x}" y="132" width="18" height="50" rx="8" fill="${band}" ${SK}/>` +
+      [142, 154, 166].map((y) => `<path d="M${x + 1} ${y}h16" stroke="#8a6a4a" stroke-width="4"/>`).join('');
+    return `<svg viewBox="0 0 200 200">
+      ${leg(72)}${leg(110)}
+      <ellipse cx="80" cy="188" rx="19" ry="8" fill="#8a6a4a" ${SK}/><ellipse cx="120" cy="188" rx="19" ry="8" fill="#8a6a4a" ${SK}/>
+      <path d="M58 100Q38 112 40 138" stroke="${INK}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M58 100Q38 112 40 138" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M142 100Q162 112 160 138" stroke="${INK}" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M142 100Q162 112 160 138" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <circle cx="40" cy="140" r="8" fill="${c}" ${SK}/><circle cx="160" cy="140" r="8" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="96" rx="46" ry="52" fill="${c}" ${SK}/>
+      <ellipse cx="100" cy="84" rx="34" ry="15" fill="#6e5440" opacity=".45"/>
+      ${eyes(84, 116, 84, 8, face, '#2a1d18')}${fierce(face)}
+      ${mouth(100, 108, face)}
+    </svg>`;
+  }
+  function hitmonchanSVG(face) {
+    const c = '#c9a685', shirt = '#b49ad8', glove = '#e04a3c';
+    return `<svg viewBox="0 0 200 200">
+      <rect x="80" y="158" width="14" height="24" rx="6" fill="${c}" ${SK}/><rect x="106" y="158" width="14" height="24" rx="6" fill="${c}" ${SK}/>
+      <ellipse cx="84" cy="186" rx="15" ry="8" fill="${shirt}" ${SK}/><ellipse cx="116" cy="186" rx="15" ry="8" fill="${shirt}" ${SK}/>
+      <path d="M66 128L52 140M134 128L148 140" stroke="${INK}" stroke-width="13" stroke-linecap="round"/><path d="M66 128L52 140M134 128L148 140" stroke="${c}" stroke-width="7" stroke-linecap="round"/>
+      <path d="M68 116Q100 104 132 116L136 166Q100 176 64 166Z" fill="${shirt}" ${SK}/>
+      <circle cx="46" cy="144" r="17" fill="${glove}" ${SK}/><circle cx="154" cy="144" r="17" fill="${glove}" ${SK}/>
+      <path d="M38 138q6 -6 14 -2M162 138q-6 -6 -14 -2" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+      <path d="M88 60L90 14L110 14L112 60Z" fill="${c}" ${SK}/>
+      <path d="M89 28h22M89 42h22" stroke="${INK}" stroke-width="2.5"/>
+      <circle cx="100" cy="88" r="40" fill="${c}" ${SK}/>
+      ${eyes(84, 116, 88, 8.5, face, '#2a1d18')}${fierce(face)}
+      ${mouth(100, 108, face)}
+    </svg>`;
+  }
+  function hitmontopSVG(face) {
+    const c = '#c9a07a', ball = '#3a6fd0';
+    const spiky = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${ball}" ${SK}/>` +
+      [0, 72, 144, 216, 288].map((a) => {
+        const t = (a * Math.PI) / 180;
+        return `<circle cx="${(x + Math.cos(t) * r).toFixed(1)}" cy="${(y + Math.sin(t) * r).toFixed(1)}" r="${(r * 0.32).toFixed(1)}" fill="#e9eef8" stroke="${INK}" stroke-width="2"/>`;
+      }).join('');
+    return `<svg viewBox="0 0 200 200">
+      <path d="M86 86L64 46M114 86L136 46" stroke="${INK}" stroke-width="15" stroke-linecap="round"/><path d="M86 86L64 46M114 86L136 46" stroke="${c}" stroke-width="9" stroke-linecap="round"/>
+      ${spiky(60, 40, 13)}${spiky(140, 40, 13)}
+      <path d="M62 120L44 132M138 120L156 132" stroke="${INK}" stroke-width="13" stroke-linecap="round"/><path d="M62 120L44 132M138 120L156 132" stroke="${c}" stroke-width="7" stroke-linecap="round"/>
+      ${spiky(40, 136, 9)}${spiky(160, 136, 9)}
+      <path d="M76 140L100 196L124 140Z" fill="#efe0c0" ${SK}/>
+      <path d="M84 150q16 8 32 0M90 164q10 6 20 0M95 178q5 3 10 0" stroke="#a88a64" stroke-width="3" fill="none"/>
+      <ellipse cx="100" cy="114" rx="42" ry="36" fill="${c}" ${SK}/>
+      ${eyes(84, 116, 112, 8.5, face, '#2a1d18')}${fierce(face)}
+      ${mouth(100, 132, face)}
+    </svg>`;
+  }
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
   for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
+  Object.assign(DRAW, { tyrogue: tyrogueSVG, hitmonlee: hitmonleeSVG, hitmonchan: hitmonchanSVG, hitmontop: hitmontopSVG });
   const NAMES = {
     egg: '포켓몬 알', cosmog: '코스모그', cosmoem: '코스모움', solgaleo: '솔가레오', lunala: '루나아라',
     charmander: '파이리', charmeleon: '리자드', charizard: '리자몽', megax: '메가리자몽X', megay: '메가리자몽Y',
+    tyrogue: '배루키', hitmonlee: '시라소몬', hitmonchan: '홍수몬', hitmontop: '카포에라',
   };
-  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180 }; // 진화에 필요한 경험치
+  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160 }; // 진화에 필요한 경험치
   // 다음 모습 (배열이면 그중 랜덤)
   const NEXT = {
     cosmog: 'cosmoem', cosmoem: ['solgaleo', 'lunala'],
     charmander: 'charmeleon', charmeleon: 'charizard', charizard: ['megax', 'megay'],
+    tyrogue: ['hitmonlee', 'hitmonchan', 'hitmontop'],
   };
   const LINES = {
     cosmog: ['cosmog', 'cosmoem', 'solgaleo', 'lunala'],
     charmander: ['charmander', 'charmeleon', 'charizard', 'megax', 'megay'],
+    tyrogue: ['tyrogue', 'hitmonlee', 'hitmonchan', 'hitmontop'],
   };
-  const FINALS = ['solgaleo', 'lunala', 'megax', 'megay'];
-  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire' };
+  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열' };
+  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋' };
+  const randomLine = () => { const k = Object.keys(LINES); return k[Math.floor(Math.random() * k.length)]; };
+  const FINALS = ['solgaleo', 'lunala', 'megax', 'megay', 'hitmonlee', 'hitmonchan', 'hitmontop'];
+  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo' };
   const CRY = {
     cosmog: '삐유~♪', cosmoem: '(따뜻해…)', solgaleo: '라오—!', lunala: '룰루—!',
     charmander: '파이~!', charmeleon: '리자—!', charizard: '크와앙!', megax: '크아아앙!!', megay: '크와아앙!!',
+    tyrogue: '배루—!', hitmonlee: '시라—!', hitmonchan: '홍수—!', hitmontop: '카포—!',
   };
   const REVEAL = {
     solgaleo: '☀️ 태양의 빛이 쏟아진다…!', lunala: '🌙 달의 빛이 내려앉는다…!',
     megax: '💙 푸른 불꽃이 타오른다…!', megay: '🔥 거대한 불꽃이 휘몰아친다…!',
+    hitmonlee: '🦵 엄청난 발차기 힘이 솟아난다…!', hitmonchan: '🥊 번개 같은 펀치 힘이 솟아난다…!',
+    hitmontop: '🌀 빙글빙글 회전하는 힘이 솟아난다…!',
   };
-  const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥' };
-  const food = () => (S.line === 'cosmog' ? '🍬' : '🍖');
+  const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥', hitmonlee: '🦵', hitmonchan: '🥊', hitmontop: '🌀' };
+  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙' })[S.line];
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -493,7 +577,7 @@
     if (withB === '으로') return word + ((has && (c - 0xac00) % 28 !== 8) ? '으로' : '로');
     return word + (has ? withB : noB);
   }
-  const MOVES = { solgaleo: '메테오드라이브', lunala: '섀도레이', megax: '플레어드라이브', megay: '블래스트번' };
+  const MOVES = { solgaleo: '메테오드라이브', lunala: '섀도레이', megax: '플레어드라이브', megay: '블래스트번', hitmonlee: '무릎차기', hitmonchan: '메가톤펀치', hitmontop: '트리플킥' };
 
   function petSVG(stage, face, warmth) {
     return stage === 'egg' ? eggSVG(warmth || 0) : DRAW[stage](face);
@@ -503,7 +587,7 @@
   function fresh(prev) {
     return {
       stage: 'egg', nick: '', warmth: 0,
-      line: Math.random() < 0.5 ? 'cosmog' : 'charmander', // 알에서 누가 나올지 (50%)
+      line: randomLine(), // 알에서 누가 나올지 (랜덤)
       hunger: 80, mood: 80, clean: 100, energy: 100,
       exp: 0, bond: 0, sleeping: false, messes: 0, messAcc: 0,
       age: 0, last: Date.now(),
@@ -514,7 +598,7 @@
   let S;
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
   if (!S || !S.stage) S = fresh();
-  if (!S.line) S.line = LINES.charmander.includes(S.stage) ? 'charmander' : S.stage === 'egg' ? (Math.random() < 0.5 ? 'cosmog' : 'charmander') : 'cosmog';
+  if (!S.line) S.line = S.stage === 'egg' ? randomLine() : Object.keys(LINES).find((k) => LINES[k].includes(S.stage));
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   const clamp = (v) => Math.max(0, Math.min(100, v));
 
@@ -631,7 +715,7 @@
     $('stageTag').hidden = !egg && $('nameTag').textContent === NAMES[S.stage];
     const scr = $('screen');
     scr.classList.toggle('night', S.sleeping);
-    for (const c of ['sun', 'moon', 'fire', 'bluefire']) scr.classList.toggle(c, !S.sleeping && BG[S.stage] === c);
+    for (const c of ['sun', 'moon', 'fire', 'bluefire', 'dojo']) scr.classList.toggle(c, !S.sleeping && BG[S.stage] === c);
     $('zzz').hidden = !S.sleeping;
 
     for (const k of ['hunger', 'mood', 'clean', 'energy']) {
@@ -759,7 +843,7 @@
         if (onCool(id, 1500)) return;
         S.warmth = Math.min(100, S.warmth + 6);
         fx('🎵', 2); tune([523, 659, 784]);
-        say(S.line === 'cosmog' ? '알 속에서 별빛이 반짝여요 ✨' : '알 속에서 불꽃이 일렁여요 🔥');
+        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋' }[S.line]);
         break;
       case 'pat':
         if (onCool(id, 1200)) return;
@@ -869,14 +953,14 @@
 
   async function signature() {
     busy = true; render();
-    const sun = S.stage === 'solgaleo' || S.stage === 'megay';
+    const sun = S.stage !== 'lunala' && S.stage !== 'megax';
     const beam = $('beam');
     beam.style.background = {
       solgaleo: 'radial-gradient(circle at 50% 60%, #fff 0 10%, #ffd34a 25%, rgba(255,120,30,0.6) 50%, transparent 75%)',
       lunala: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #b49bff 25%, rgba(60,30,160,0.7) 50%, transparent 75%)',
       megax: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #8fd8ff 22%, rgba(30,110,255,0.75) 50%, transparent 75%)',
       megay: 'radial-gradient(circle at 50% 60%, #fff 0 8%, #ffd34a 20%, rgba(255,70,20,0.75) 50%, transparent 75%)',
-    }[S.stage];
+    }[S.stage] || 'radial-gradient(circle at 50% 60%, #fff 0 8%, #ffe9a8 22%, rgba(255,150,60,0.6) 50%, transparent 75%)';
     say(`${S.nick || NAMES[S.stage]}의 ${MOVES[S.stage]}!`, 2000);
     petInner.classList.add('shake');
     tune(sun ? [523, 659, 784, 1046, 1318] : [392, 466, 587, 698, 932], 0.08);
@@ -918,7 +1002,7 @@
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046], 0.12);
-    await story(`알에서 ${josa(NAMES[S.line], '이', '가')} 태어났다! ${S.line === 'cosmog' ? '🌌' : '🔥'}`, 2400);
+    await story(`알에서 ${josa(NAMES[S.line], '이', '가')} 태어났다! ${LINE_ICON[S.line]}`, 2400);
     $('story').hidden = true;
     busy = false;
     save(); render();
@@ -974,6 +1058,9 @@
       lunala: '코스모움은 달의 힘을 받아 <b>루나아라</b>로 진화했어요.',
       megax: '리자몽이 메가스톤의 힘으로 <b>메가리자몽X</b>로 메가진화했어요.',
       megay: '리자몽이 메가스톤의 힘으로 <b>메가리자몽Y</b>로 메가진화했어요.',
+      hitmonlee: '배루키는 발차기 수련 끝에 <b>시라소몬</b>으로 진화했어요.',
+      hitmonchan: '배루키는 펀치 수련 끝에 <b>홍수몬</b>으로 진화했어요.',
+      hitmontop: '배루키는 회전 수련 끝에 <b>카포에라</b>로 진화했어요.',
     }[S.stage];
     openModal(`
       <h2>${ICON[S.stage]} ${NAMES[S.stage]} 탄생!</h2>
@@ -998,16 +1085,17 @@
       const seen = S.dex[k];
       return `<div class="${seen ? '' : 'unknown'}">${petSVG(k, 'normal')}${seen ? NAMES[k] : '???'}</div>`;
     };
-    const cells = `<div class="dexTitle">🌌 코스모그 계열</div><div class="dex">${LINES.cosmog.map(cell).join('')}</div>
-      <div class="dexTitle">🔥 파이리 계열</div><div class="dex" style="grid-template-columns:repeat(5,1fr)">${LINES.charmander.map(cell).join('')}</div>`;
+    const cells = Object.keys(LINES).map((k) => `<div class="dexTitle">${LINE_NAMES[k]}</div>
+      <div class="dex" style="grid-template-columns:repeat(${LINES[k].length},1fr)">${LINES[k].map(cell).join('')}</div>`).join('');
     const final = !NEED[S.stage] && S.stage !== 'egg';
     openModal(`
       <h2>📖 도감</h2>
       ${cells}
       <p>최종 진화까지 키운 친구: <b>${S.raised}마리</b></p>
-      <p>🥚 알에서 <b>코스모그</b> 또는 <b>파이리</b>가 랜덤으로 태어나요.<br>
+      <p>🥚 알에서 <b>코스모그</b>, <b>파이리</b>, <b>배루키</b> 중 하나가 랜덤으로 태어나요.<br>
       코스모그 → 코스모움 → <b>솔가레오</b> / <b>루나아라</b><br>
-      파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>마지막 진화는 둘 중 하나가 랜덤이에요!</p>
+      파이리 → 리자드 → 리자몽 → <b>메가리자몽X</b> / <b>메가리자몽Y</b><br>
+      배루키 → <b>시라소몬</b> / <b>홍수몬</b> / <b>카포에라</b><br>마지막 진화는 그중 하나가 랜덤이에요!</p>
       <div class="row">
         ${final ? '<button class="primary" id="newEgg">🥚 새 알 받기</button>' : ''}
         <button data-close>닫기</button>
