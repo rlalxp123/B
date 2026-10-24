@@ -37,11 +37,19 @@
     display: flex; flex-direction: column; gap: 12px;
   }
   header { display: flex; align-items: center; justify-content: space-between; color: #fff; }
-  header h1 { margin: 0; font-size: 20px; letter-spacing: -0.5px; }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: -0.5px; white-space: nowrap; }
+  header { gap: 6px; }
+  header h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  header > div { flex-shrink: 0; }
+  @media (max-width: 400px) {
+    header h1 { font-size: 14px; letter-spacing: -0.8px; }
+    .iconBtn { font-size: 12px; padding: 5px 7px; }
+    #soundBtn { padding: 5px 6px; }
+  }
   .iconBtn {
     font: inherit; font-size: 14px; font-weight: 700; color: #fff;
     background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.4);
-    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+    border-radius: 999px; padding: 6px 10px; cursor: pointer; white-space: nowrap;
   }
 
   /* 다마고치 기계 */
@@ -201,6 +209,15 @@
   #toast.show { opacity: 0.95; }
   footer { color: rgba(255,255,255,0.6); font-size: 12px; text-align: center; }
   footer a { color: inherit; }
+  .log { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+  .logItem { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 6px 10px 6px 6px; }
+  .logItem.now { background: #fff6dc; }
+  .logItem svg { width: 64px; height: 64px; }
+  .logItem b { font-size: 15px; }
+  .logItem small { display: block; font-size: 12px; line-height: 1.45; color: #5a5470; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: #efe8ff; margin-left: 4px; vertical-align: 2px; }
+  .sum { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font-size: 13px; font-weight: 700; }
+  .sum span { background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 3px 10px; }
   .nickInput { width: 100%; font: inherit; font-size: 18px; font-weight: 700; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
   button:focus-visible, input:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick 0.45s ease-in-out infinite alternate; }
@@ -215,6 +232,7 @@
     <div style="display:flex;gap:6px">
       <button class="iconBtn" id="soundBtn" aria-label="소리">🔊</button>
       <button class="iconBtn" id="dexBtn">📖 도감</button>
+      <button class="iconBtn" id="logBtn">📜 기록</button>
     </div>
   </header>
 
@@ -1109,7 +1127,8 @@
       stage: 'egg', nick: '', warmth: 0, shiny: false,
       line: randomLine(), // 알에서 누가 나올지 (랜덤)
       egg: makeEgg(), // 알 무늬 (랜덤으로 섞어서)
-      eggs: (prev && prev.eggs) || {},
+      path: [], born: 0, // 진화해 온 길, 태어난 날
+      history: (prev && prev.history) || [], // 키운 기록
       hunger: 80, mood: 80, clean: 100, energy: 100,
       exp: 0, bond: 0, sleeping: false, messes: 0, messAcc: 0,
       age: 0, last: Date.now(),
@@ -1122,6 +1141,8 @@
   if (!S || !S.stage) S = fresh();
   if (!S.egg) S.egg = makeEgg();
   delete S.eggLook; delete S.eggHue; delete S.eggs;
+  if (!S.history) S.history = [];
+  if (!S.path) S.path = S.stage === 'egg' ? [] : [S.stage];
   if (!S.line) S.line = S.stage === 'egg' ? randomLine() : Object.keys(LINES).find((k) => LINES[k].includes(S.stage));
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   const clamp = (v) => Math.max(0, Math.min(100, v));
@@ -1528,6 +1549,7 @@
     S.shiny = Math.random() < 0.05; // 드물게 이로치 (5%)
     S.hunger = 70; S.mood = 80; S.clean = 100; S.energy = 100; S.exp = 0;
     S.dex[S.stage] = true;
+    S.path = [S.stage]; S.born = Date.now();
     if (legend) S.raised++;
     lastKey = ''; render();
     $('flash').classList.remove('on');
@@ -1578,6 +1600,7 @@
     if (!keepNick) S.nick = '';
     S.exp = 0;
     S.dex[to] = true;
+    S.path.push(to);
     if (!NEED[to]) S.raised++;
     S.mood = clamp(S.mood + 20);
     happyUntil = performance.now() + 3000;
@@ -1630,6 +1653,33 @@
   function closeModal() { $('modal').hidden = true; }
   $('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
+  // ---------- 키운 기록 ----------
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const fmtDate = (t) => { if (!t) return '?'; const d = new Date(t); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`; };
+  const fmtAge = (sec) => { const m = Math.floor(sec / 60); return m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간 ${m % 60}분`; };
+  function logItem(r, now) {
+    const name = r.nick && r.nick !== NAMES[r.stage] ? `${esc(r.nick)} <small style="display:inline">(${NAMES[r.stage]})</small>` : NAMES[r.stage];
+    const badges = (now ? '<span class="badge">키우는 중</span>' : '') + (r.shiny ? '<span class="badge">✨ 이로치</span>' : '') +
+      (r.legend ? '<span class="badge">⭐ 전설</span>' : '') + (r.gold ? '<span class="badge">👑 황금 알</span>' : '');
+    return `<div class="logItem${now ? ' now' : ''}">${petSVG(r.stage, 'happy', 0, r.shiny)}
+      <div><b>${name}</b>${badges}
+      <small>${r.path.map((k) => NAMES[k]).join(' → ')}</small>
+      <small>📅 ${fmtDate(r.born)}${now ? '부터' : ` ~ ${fmtDate(r.ended)}`} · ⏱ ${fmtAge(r.age)}${r.bond ? ` · 💞 ${r.bond}` : ''}</small></div></div>`;
+  }
+  $('logBtn').addEventListener('click', () => {
+    const H = S.history;
+    const cur = S.stage === 'egg' ? '' : logItem(record(), true);
+    const sum = `<div class="sum"><span>🐾 ${H.length}마리 키움</span><span>✨ 이로치 ${H.filter((r) => r.shiny).length}</span>` +
+      `<span>🌟 최종 진화 ${H.filter((r) => !NEED[r.stage]).length}</span></div>`;
+    openModal(`
+      <h2>📜 키운 기록</h2>
+      ${sum}
+      <div class="log">${cur}${H.map((r) => logItem(r, false)).join('') ||
+        (cur ? '' : '<p style="text-align:center">아직 기록이 없어요.<br>알을 부화시켜서 키워 보세요!</p>')}</div>
+      <p style="font-size:12px;text-align:center">새 알을 받거나 처음부터 시작하면 지금 친구가 기록에 남아요.</p>
+      <div class="row"><button data-close>닫기</button></div>`);
+  });
+
   $('dexBtn').addEventListener('click', () => {
     const cell = (k) => {
       const seen = S.dex[k];
@@ -1654,7 +1704,7 @@
     const ne = $('newEgg');
     if (ne) ne.addEventListener('click', () => {
       openModal(`<h2>새 알을 받을까요?</h2>
-        <p>지금의 ${josa(S.nick || NAMES[S.stage], '은', '는')} 도감에 기록되고, 새로운 알부터 다시 키워요.</p>
+        <p>지금의 ${esc(josa(S.nick || NAMES[S.stage], '은', '는'))} 📜 키운 기록에 남고, 새로운 알부터 다시 키워요.</p>
         <div class="row"><button class="primary" id="yesEgg">받을래요</button><button data-close>아니요</button></div>`);
       $('yesEgg').addEventListener('click', () => { restart(); closeModal(); toast(S.egg.gold ? '✨ 황금 알을 받았어요!' : '새 알을 받았어요! 🥚'); });
     });
@@ -1663,12 +1713,21 @@
   $('resetLink').addEventListener('click', (e) => {
     e.preventDefault();
     openModal(`<h2>처음부터 시작할까요?</h2>
-      <p>지금 키우는 친구와 헤어지고 새 알부터 시작해요. 도감 기록은 남아요.</p>
+      <p>지금 키우는 친구와 헤어지고 새 알부터 시작해요. 📜 키운 기록과 도감은 남아요.</p>
       <div class="row"><button class="danger" id="yesReset">처음부터</button><button data-close>취소</button></div>`);
     $('yesReset').addEventListener('click', () => { restart(); closeModal(); toast(S.egg.gold ? '✨ 황금 알을 받았어요!' : '새 알을 받았어요! 🥚'); });
   });
 
+  // 지금 키우는 친구를 기록 한 줄로
+  const record = () => ({
+    stage: S.stage, nick: S.nick, shiny: !!S.shiny, gold: !!(S.egg && S.egg.gold), legend: S.line === 'legend',
+    path: S.path.length ? S.path : [S.stage], born: S.born || 0, ended: Date.now(), age: Math.round(S.age), bond: Math.round(S.bond || 0),
+  });
   function restart() {
+    if (S.stage !== 'egg') {
+      S.history.unshift(record());
+      S.history = S.history.slice(0, 100); // 최근 100마리까지
+    }
     S = fresh(S);
     lastKey = ''; actionsKey = '';
     save(); render();
