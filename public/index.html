@@ -104,6 +104,8 @@
   #petInner { width: 100%; height: 100%; animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 90%; }
   #petInner.egg { animation: wobble 2.6s ease-in-out infinite; }
   #petInner.egg.hot { animation: wobble 0.9s ease-in-out infinite; }
+  #petInner.rare svg { animation: shine 1.6s ease-in-out infinite; }
+  @keyframes shine { 0%,100% { filter: drop-shadow(0 0 4px #ffe27a); } 50% { filter: drop-shadow(0 0 16px #ffd34a); } }
   #petInner.sleep { animation: breathe 3.2s ease-in-out infinite; }
   #petInner.jump { animation: jump 0.5s ease-out; }
   #petInner.shake { animation: shake 0.12s linear infinite; }
@@ -200,7 +202,7 @@
   button:focus-visible, input:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick 0.45s ease-in-out infinite alternate; }
   @keyframes flick { from { transform: scale(1, 1); } to { transform: scale(0.86, 1.14); } }
-  @media (prefers-reduced-motion: reduce) { #petInner, .twinkle, #zzz span, .flame { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { #petInner, #petInner svg, .twinkle, #zzz span, .flame { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -288,21 +290,79 @@
   const cheeks = (lx, rx, y) =>
     `<ellipse cx="${lx}" cy="${y}" rx="7" ry="4.5" fill="#ff8fb8" opacity=".75"/><ellipse cx="${rx}" cy="${y}" rx="7" ry="4.5" fill="#ff8fb8" opacity=".75"/>`;
 
-  function eggSVG(warmth) {
+  // ---------- 알 디자인 (랜덤) ----------
+  const EGG_PATH = 'M100 22C148 22 166 102 162 132C158 170 132 188 100 188C68 188 42 170 38 132C34 102 52 22 100 22Z';
+  const heart = (x, y, k, fill) =>
+    `<path d="M${x} ${y + 9 * k}C${x - 16 * k} ${y - 2 * k} ${x - 6 * k} ${y - 14 * k} ${x} ${y - 4 * k}C${x + 6 * k} ${y - 14 * k} ${x + 16 * k} ${y - 2 * k} ${x} ${y + 9 * k}Z" fill="${fill}"/>`;
+  const leafShape = (x, y, k, rot, fill) =>
+    `<path d="M${x} ${y}q${10 * k} ${-12 * k} ${22 * k} 0q${-12 * k} ${12 * k} ${-22 * k} 0z" fill="${fill}" stroke="#3f7a2a" stroke-width="1.5" transform="rotate(${rot} ${x} ${y})"/>`;
+  const EGGS = {
+    star: { name: '별빛 알', g: ['#ffffff', '#efe8ff', '#c7b6f0'], crack: '#5b4aa8', art: () =>
+      `<circle cx="78" cy="62" r="11" fill="#3b3a9e"/>${star4(78, 62, 6, '#ffe27a')}
+       <circle cx="128" cy="86" r="14" fill="#3b3a9e"/>${star4(128, 86, 8, '#ffe27a')}
+       <circle cx="70" cy="140" r="12" fill="#3b3a9e"/>${star4(70, 140, 7, '#ffe27a')}
+       <circle cx="132" cy="150" r="9" fill="#ffc94a"/><circle cx="100" cy="112" r="7" fill="#ffc94a"/>` },
+    rainbow: { name: '무지개 알', g: ['#ffffff', '#ffffff', '#f1eaff'], crack: '#7a5ac8', art: () =>
+      ['#ff8fa3', '#ffc36b', '#fff07a', '#8fe3a0', '#8fd0ff', '#c4a4ff'].map((c, i) =>
+        `<rect x="10" y="${40 + i * 24}" width="180" height="24" fill="${c}" transform="rotate(-14 100 100)"/>`).join('') +
+      `<path d="M30 70q70 -30 140 0" stroke="#fff" stroke-width="3" fill="none" opacity=".6"/>` },
+    fire: { name: '불꽃 알', g: ['#fff4d6', '#ffc36b', '#ff7a3c'], crack: '#8a2a10', art: () =>
+      `<path d="M30 150Q50 120 62 140Q72 104 90 132Q100 96 112 132Q128 104 138 140Q152 120 172 150V200H30Z" fill="#ff5a28" opacity=".85"/>
+       <path d="M30 168Q52 146 66 162Q80 136 98 160Q112 132 126 160Q144 140 172 168V200H30Z" fill="#ffd34a"/>
+       ${flame(76, 82, 7, ['#ff6a1f', '#ffe27a'])}${flame(126, 64, 6, ['#ff6a1f', '#ffe27a'])}` },
+    heart: { name: '하트 알', g: ['#ffffff', '#ffe0ec', '#ff9ec0'], crack: '#c2406e', art: () =>
+      heart(76, 64, 1.1, '#ff5c8a') + heart(128, 92, 1.5, '#ff7aa0') + heart(72, 132, 1.3, '#ffffff') +
+      heart(124, 152, 0.9, '#ff5c8a') + heart(100, 112, 0.6, '#ffffff') },
+    water: { name: '물방울 알', g: ['#f2fcff', '#a8e4ff', '#4fb0e0'], crack: '#1f5a8a', art: () =>
+      `<path d="M20 120Q45 104 70 120T120 120T170 120T220 120V200H20Z" fill="#3a8fd0" opacity=".55"/>
+       <path d="M20 140Q45 124 70 140T120 140T170 140T220 140V200H20Z" fill="#2a70b8" opacity=".6"/>
+       <circle cx="76" cy="62" r="10" fill="#fff" opacity=".85"/><circle cx="118" cy="78" r="6" fill="#fff" opacity=".8"/>
+       <circle cx="98" cy="50" r="4" fill="#fff" opacity=".8"/><circle cx="132" cy="104" r="8" fill="#fff" opacity=".6"/>` },
+    leaf: { name: '새싹 알', g: ['#f6ffe8', '#c8f0a0', '#8fd060'], crack: '#3f7a2a', art: () =>
+      leafShape(62, 70, 1.2, -30, '#5aa83a') + leafShape(110, 96, 1.4, 20, '#4a9a2e') + leafShape(58, 140, 1.1, 10, '#6ab84a') +
+      leafShape(118, 150, 1, -40, '#5aa83a') + `<circle cx="132" cy="62" r="6" fill="#ffe27a"/><circle cx="84" cy="112" r="5" fill="#fff7a0"/>` },
+    galaxy: { name: '은하수 알', g: ['#6a5ae0', '#2d2a8a', '#120f3d'], crack: '#e9e0ff', art: () =>
+      `<ellipse cx="100" cy="110" rx="70" ry="22" fill="#ff8fd0" opacity=".25" transform="rotate(-20 100 110)"/>
+       <ellipse cx="100" cy="110" rx="60" ry="10" fill="#8fd0ff" opacity=".3" transform="rotate(-20 100 110)"/>
+       <circle cx="124" cy="70" r="12" fill="#ffc36b"/><ellipse cx="124" cy="70" rx="22" ry="5" fill="none" stroke="#ffe9b0" stroke-width="3" transform="rotate(-20 124 70)"/>
+       ${star4(70, 60, 7, '#fff')}${star4(80, 140, 6, '#ffe27a')}${star4(134, 140, 5, '#fff')}${star4(60, 104, 4, '#fff')}${star4(104, 164, 4, '#ffe27a')}${star4(100, 40, 3, '#fff')}` },
+    thunder: { name: '번개 알', g: ['#fffbe0', '#ffe066', '#f6b800'], crack: '#6a4a00', art: () =>
+      `<path d="M20 98L56 84L78 106L102 82L126 106L148 84L184 98V122L148 108L126 130L102 106L78 130L56 108L20 122Z" fill="#3b3326"/>
+       <path d="M104 38L88 66H102L92 88L118 58H104L112 38Z" fill="#fff" stroke="#3b3326" stroke-width="2"/>
+       <circle cx="72" cy="150" r="9" fill="#ff6a5a" opacity=".85"/><circle cx="130" cy="152" r="9" fill="#ff6a5a" opacity=".85"/>` },
+    candy: { name: '사탕 알', g: ['#ffffff', '#fff4fa', '#ffd6ec'], crack: '#c2406e', art: () =>
+      [[72, 58, '#ff8fa3'], [120, 64, '#8fd0ff'], [96, 92, '#fff07a'], [62, 108, '#8fe3a0'], [136, 108, '#c4a4ff'],
+        [84, 140, '#ffc36b'], [124, 148, '#ff8fa3'], [104, 170, '#8fd0ff']].map(([x, y, c]) =>
+        `<circle cx="${x}" cy="${y}" r="10" fill="${c}"/><circle cx="${x - 3}" cy="${y - 3}" r="3" fill="#fff" opacity=".8"/>`).join('') },
+    gold: { name: '황금 알', rare: true, g: ['#fffbe0', '#ffd34a', '#c9861a'], crack: '#7a4a00', art: () =>
+      `<path d="M30 112Q100 92 170 112" stroke="#fff3b0" stroke-width="10" fill="none"/>
+       <path d="M30 112Q100 92 170 112" stroke="#b06a10" stroke-width="2" fill="none" transform="translate(0 7)"/>
+       <path d="M100 92l10 12 -10 12 -10 -12z" fill="#e8334a" stroke="#7a4a00" stroke-width="2"/>
+       <path d="M62 104l7 8 -7 8 -7 -8z" fill="#3aa8ff" stroke="#7a4a00" stroke-width="2"/>
+       <path d="M138 104l7 8 -7 8 -7 -8z" fill="#47c97a" stroke="#7a4a00" stroke-width="2"/>
+       ${star4(76, 60, 9, '#fff')}${star4(132, 150, 7, '#fff')}${star4(118, 52, 4, '#fff')}` },
+  };
+  function pickEgg() {
+    if (Math.random() < 0.06) return 'gold'; // 아주 가끔 황금 알
+    const k = Object.keys(EGGS).filter((e) => !EGGS[e].rare);
+    return k[Math.floor(Math.random() * k.length)];
+  }
+  function eggSVG(warmth, look, uid = 'p') {
+    const e = EGGS[look] || EGGS.star;
+    const id = `eg${look}${uid}`;
     const crack = warmth >= 60
-      ? `<path d="M62 92l12 10 8-12 10 14 10-10 12 12 8-10" stroke="#5b4aa8" stroke-width="3.5" fill="none" stroke-linejoin="round"/>` : '';
+      ? `<path d="M62 92l12 10 8-12 10 14 10-10 12 12 8-10" stroke="${e.crack}" stroke-width="3.5" fill="none" stroke-linejoin="round"/>` : '';
     const crack2 = warmth >= 85
-      ? `<path d="M70 132l10-8 6 10 10-9 9 11 9-8 10 9" stroke="#5b4aa8" stroke-width="3" fill="none" stroke-linejoin="round"/>` : '';
+      ? `<path d="M70 132l10-8 6 10 10-9 9 11 9-8 10 9" stroke="${e.crack}" stroke-width="3" fill="none" stroke-linejoin="round"/>` : '';
+    const glow = e.rare ? `${star4(36, 50, 8, '#fff4b0')}${star4(170, 80, 6, '#fff4b0')}${star4(160, 30, 5, '#fff')}` : '';
     return `<svg viewBox="0 0 200 200"><defs>
-      <radialGradient id="eg" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#efe8ff"/><stop offset="1" stop-color="#c7b6f0"/></radialGradient></defs>
-      <path d="M100 22C148 22 166 102 162 132C158 170 132 188 100 188C68 188 42 170 38 132C34 102 52 22 100 22Z" fill="url(#eg)" stroke="${INK}" stroke-width="4"/>
-      <circle cx="78" cy="62" r="11" fill="#3b3a9e"/>${star4(78, 62, 6, '#ffe27a')}
-      <circle cx="128" cy="86" r="14" fill="#3b3a9e"/>${star4(128, 86, 8, '#ffe27a')}
-      <circle cx="70" cy="140" r="12" fill="#3b3a9e"/>${star4(70, 140, 7, '#ffe27a')}
-      <circle cx="132" cy="150" r="9" fill="#ffc94a"/>
-      <circle cx="100" cy="112" r="7" fill="#ffc94a"/>
-      ${crack}${crack2}
-      <ellipse cx="76" cy="48" rx="12" ry="6" fill="#fff" opacity=".8" transform="rotate(-30 76 48)"/>
+      <radialGradient id="${id}g" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="${e.g[0]}"/><stop offset=".55" stop-color="${e.g[1]}"/><stop offset="1" stop-color="${e.g[2]}"/></radialGradient>
+      <clipPath id="${id}c"><path d="${EGG_PATH}"/></clipPath></defs>
+      ${glow}
+      <path d="${EGG_PATH}" fill="url(#${id}g)"/>
+      <g clip-path="url(#${id}c)">${e.art()}${crack}${crack2}</g>
+      <path d="${EGG_PATH}" fill="none" stroke="${INK}" stroke-width="4"/>
+      <ellipse cx="76" cy="48" rx="12" ry="6" fill="#fff" opacity=".75" transform="rotate(-30 76 48)"/>
     </svg>`;
   }
 
@@ -662,7 +722,7 @@
     leafeon: '리프블레이드', glaceon: '눈보라', sylveon: '문포스' };
 
   function petSVG(stage, face, warmth) {
-    return stage === 'egg' ? eggSVG(warmth || 0) : DRAW[stage](face);
+    return stage === 'egg' ? eggSVG(warmth || 0, S.eggLook) : DRAW[stage](face);
   }
 
   // ---------- 상태 ----------
@@ -670,6 +730,8 @@
     return {
       stage: 'egg', nick: '', warmth: 0,
       line: randomLine(), // 알에서 누가 나올지 (랜덤)
+      eggLook: pickEgg(), // 알 무늬 (랜덤)
+      eggs: (prev && prev.eggs) || {},
       hunger: 80, mood: 80, clean: 100, energy: 100,
       exp: 0, bond: 0, sleeping: false, messes: 0, messAcc: 0,
       age: 0, last: Date.now(),
@@ -680,6 +742,8 @@
   let S;
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
   if (!S || !S.stage) S = fresh();
+  if (!EGGS[S.eggLook]) S.eggLook = pickEgg();
+  if (!S.eggs) S.eggs = {};
   if (!S.line) S.line = S.stage === 'egg' ? randomLine() : Object.keys(LINES).find((k) => LINES[k].includes(S.stage));
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   const clamp = (v) => Math.max(0, Math.min(100, v));
@@ -743,6 +807,7 @@
     petInner.innerHTML = petSVG(S.stage, f, S.warmth);
     petInner.classList.toggle('egg', S.stage === 'egg');
     petInner.classList.toggle('hot', S.stage === 'egg' && S.warmth >= 70);
+    petInner.classList.toggle('rare', S.stage === 'egg' && !!EGGS[S.eggLook].rare);
     petInner.classList.toggle('sleep', S.sleeping);
   }
 
@@ -793,7 +858,7 @@
     drawPet();
     const egg = S.stage === 'egg';
     $('nameTag').textContent = egg ? '???' : (S.nick || NAMES[S.stage]);
-    $('stageTag').textContent = NAMES[S.stage];
+    $('stageTag').textContent = egg ? EGGS[S.eggLook].name : NAMES[S.stage];
     $('stageTag').hidden = !egg && $('nameTag').textContent === NAMES[S.stage];
     const scr = $('screen');
     scr.classList.toggle('night', S.sleeping);
@@ -1081,6 +1146,7 @@
     S.stage = S.line;
     S.hunger = 70; S.mood = 80; S.clean = 100; S.energy = 100; S.exp = 0;
     S.dex[S.line] = true;
+    S.eggs[S.eggLook] = true;
     lastKey = ''; render();
     $('flash').classList.remove('on');
     tune([523, 659, 784, 1046], 0.12);
@@ -1181,6 +1247,9 @@
     openModal(`
       <h2>📖 도감</h2>
       ${cells}
+      <div class="dexTitle">🥚 부화시킨 알 (${Object.keys(S.eggs).length}/${Object.keys(EGGS).length})</div>
+      <div class="dex" style="grid-template-columns:repeat(5,1fr)">${Object.keys(EGGS).map((k) =>
+        `<div class="${S.eggs[k] ? '' : 'unknown'}">${eggSVG(0, k, 'd')}${S.eggs[k] ? EGGS[k].name : '???'}</div>`).join('')}</div>
       <p>최종 진화까지 키운 친구: <b>${S.raised}마리</b></p>
       <p>🥚 알에서 <b>코스모그</b>, <b>파이리</b>, <b>배루키</b>, <b>이브이</b> 중 하나가 랜덤으로 태어나요.<br>
       코스모그 → 코스모움 → <b>솔가레오</b> / <b>루나아라</b><br>
@@ -1196,7 +1265,7 @@
       openModal(`<h2>새 알을 받을까요?</h2>
         <p>지금의 ${josa(S.nick || NAMES[S.stage], '은', '는')} 도감에 기록되고, 새로운 알부터 다시 키워요.</p>
         <div class="row"><button class="primary" id="yesEgg">받을래요</button><button data-close>아니요</button></div>`);
-      $('yesEgg').addEventListener('click', () => { restart(); closeModal(); toast('새 알을 받았어요! 🥚'); });
+      $('yesEgg').addEventListener('click', () => { restart(); closeModal(); toast(`${EGGS[S.eggLook].name}을 받았어요! 🥚`); });
     });
   });
 
@@ -1205,7 +1274,7 @@
     openModal(`<h2>처음부터 시작할까요?</h2>
       <p>지금 키우는 친구와 헤어지고 새 알부터 시작해요. 도감 기록은 남아요.</p>
       <div class="row"><button class="danger" id="yesReset">처음부터</button><button data-close>취소</button></div>`);
-    $('yesReset').addEventListener('click', () => { restart(); closeModal(); toast('새 알을 받았어요! 🥚'); });
+    $('yesReset').addEventListener('click', () => { restart(); closeModal(); toast(`${EGGS[S.eggLook].name}을 받았어요! 🥚`); });
   });
 
   function restart() {
@@ -1304,7 +1373,7 @@
   window.addEventListener('pagehide', save);
 
   render();
-  if (S.stage === 'egg' && S.warmth < 5) setTimeout(() => say('누가 태어날까? 따뜻하게 해주세요 🔥', 2500), 500);
+  if (S.stage === 'egg' && S.warmth < 5) setTimeout(() => say(EGGS[S.eggLook].rare ? '반짝반짝 황금 알이다! ✨' : `${EGGS[S.eggLook].name}이에요! 따뜻하게 해주세요 🔥`, 2500), 500);
 })();
 </script>
 </body>
