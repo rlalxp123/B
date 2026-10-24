@@ -87,6 +87,8 @@
   #screen.forest { background: linear-gradient(#e6f8c8 0 62%, #8cc864 62%); }
   #screen.ice { background: linear-gradient(#f2fcff, #a8e4f2); }
   #screen.fairy { background: radial-gradient(circle at 25% 30%, #fff 0 4%, transparent 5%), linear-gradient(#ffe4f2, #d8ecff); }
+  #screen.aura { background: radial-gradient(circle at 50% 60%, #bfe6ff 0 20%, transparent 55%), linear-gradient(#1a2a6a, #3a7ac8); }
+  #screen.aura .twinkle { opacity: 1; }
   #screen.dojo { background: linear-gradient(#fff1d6 0 62%, #e0a868 62% 64%, #c98a4b 64%); }
   #sky { position: absolute; inset: 0; pointer-events: none; }
   .twinkle { position: absolute; color: #fff; font-size: 10px; opacity: 0; animation: tw 3s infinite; }
@@ -919,12 +921,49 @@
     latios: { body: '#4a7ad8', tri: '#e8584a', eye: '#d83a4a' },
   };
 
+  // 리오르 계열 (리오르, 루카리오, 메가루카리오)
+  function jackalSVG(o, face) {
+    const c = o.body, k = '#2a2a33';
+    const dread = o.dreads
+      ? both(tube('M80 72Q56 90 52 124', 6, k) + (o.dreadTip ? `<circle cx="52" cy="128" r="7" fill="${o.dreadTip}" ${SK}/>` : '') +
+          (o.dreads > 1 ? tube('M84 78Q66 104 70 134', 5, k) + (o.dreadTip ? `<circle cx="70" cy="138" r="6" fill="${o.dreadTip}" ${SK}/>` : '') : ''))
+      : '';
+    const spike = (x, y) => `<path d="M${x - 5} ${y}L${x} ${y - 12}L${x + 5} ${y}Z" fill="#eef0f6" stroke="${INK}" stroke-width="2"/>`;
+    return `<svg viewBox="0 0 200 200">
+      <path d="M126 160Q164 162 174 132Q154 148 130 148Z" fill="${o.tail}" ${SK}/>
+      ${o.tailTip ? `<path d="M150 154Q166 150 174 132Q164 146 152 148Z" fill="${k}"/>` : ''}
+      ${dread}
+      <rect x="80" y="156" width="16" height="26" rx="7" fill="${o.leg}" ${SK}/><rect x="104" y="156" width="16" height="26" rx="7" fill="${o.leg}" ${SK}/>
+      <ellipse cx="86" cy="186" rx="13" ry="7" fill="${o.foot}" ${SK}/><ellipse cx="114" cy="186" rx="13" ry="7" fill="${o.foot}" ${SK}/>
+      ${o.footSpike ? spike(80, 182) + spike(120, 182) : ''}
+      <ellipse cx="100" cy="140" rx="28" ry="26" fill="${c}" ${SK}/>
+      <path d="M74 146Q100 158 126 146L124 162Q100 170 76 162Z" fill="${k}"/>
+      ${o.chest ? `<path d="M78 120Q100 136 122 120Q118 150 100 158Q82 150 78 120Z" fill="${o.chest}" ${SK}/>${spike(100, 140)}` : ''}
+      ${both(tube('M74 128Q58 138 56 152', 6, k) + `<circle cx="56" cy="156" r="8" fill="${o.hand}" ${SK}/>` + (o.handSpike ? spike(50, 152) : ''))}
+      ${both(`<path d="M70 70L54 26L90 58Z" fill="${c}" ${SK}/><path d="M71 62L60 34L84 56Z" fill="${k}"/>`)}
+      <ellipse cx="100" cy="88" rx="40" ry="34" fill="${c}" ${SK}/>
+      <path d="M62 86Q100 70 138 86Q138 102 120 100Q100 94 80 100Q62 102 62 86Z" fill="${k}"/>
+      ${o.mark ? `<path d="M100 56L93 72H107Z" fill="${k}"/>` : ''}
+      ${eyes(84, 116, 88, 7.5, face, o.eye)}
+      <ellipse cx="100" cy="108" rx="16" ry="9" fill="${o.muzzle}"/>
+      ${mouth(100, 110, face)}
+    </svg>`;
+  }
+  const JACKALS = {
+    riolu: { body: '#4a90c8', leg: '#2a2a33', foot: '#2a2a33', hand: '#2a2a33', tail: '#4a90c8', muzzle: '#6aa8d8', eye: '#d83a3a' },
+    lucario: { body: '#3a7ac8', leg: '#2a2a33', foot: '#3a7ac8', hand: '#2a2a33', tail: '#3a7ac8', muzzle: '#5a98d8', eye: '#d83a3a',
+      chest: '#f2d670', dreads: 1, handSpike: true },
+    megalucario: { body: '#3a7ac8', leg: '#2a2a33', foot: '#d84a3a', hand: '#d84a3a', tail: '#f6d23a', tailTip: true, muzzle: '#5a98d8', eye: '#d83a3a',
+      chest: '#f6d23a', dreads: 2, dreadTip: '#d84a3a', handSpike: true, footSpike: true, mark: true },
+  };
+
   const DRAW = { cosmog: cosmogSVG, cosmoem: cosmoemSVG, solgaleo: solgaleoSVG, lunala: lunalaSVG };
   for (const k in DRAGONS) DRAW[k] = (face) => dragonSVG(DRAGONS[k], face);
   for (const k in FOXES) DRAW[k] = (face) => foxSVG(FOXES[k], face);
   for (const k in BIRDS) DRAW[k] = (face) => birdSVG(BIRDS[k], face);
   for (const k in BEASTS) DRAW[k] = (face) => beastSVG(BEASTS[k], face);
   for (const k in LATIS) DRAW[k] = (face) => latiSVG(LATIS[k], face);
+  for (const k in JACKALS) DRAW[k] = (face) => jackalSVG(JACKALS[k], face);
   Object.assign(DRAW, { kyogre: kyogreSVG, groudon: groudonSVG, rayquaza: rayquazaSVG, mew: mewSVG, mewtwo: mewtwoSVG });
   Object.assign(DRAW, { tyrogue: tyrogueSVG, hitmonlee: hitmonleeSVG, hitmonchan: hitmonchanSVG, hitmontop: hitmontopSVG });
   const NAMES = {
@@ -936,34 +975,37 @@
     kyogre: '가이오가', groudon: '그란돈', rayquaza: '레쿠쟈', lugia: '루기아', hooh: '칠색조',
     latias: '라티아스', latios: '라티오스', mew: '뮤', mewtwo: '뮤츠', raikou: '라이코', entei: '앤테이',
     suicune: '스이쿤', articuno: '프리져', zapdos: '썬더', moltres: '파이어',
+    riolu: '리오르', lucario: '루카리오', megalucario: '메가루카리오',
   };
   const LEGENDS = ['kyogre', 'groudon', 'rayquaza', 'lugia', 'hooh', 'latias', 'latios', 'mew', 'mewtwo', 'raikou', 'entei', 'suicune', 'articuno', 'zapdos', 'moltres'];
-  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160 }; // 진화에 필요한 경험치
+  const NEED = { cosmog: 120, cosmoem: 180, charmander: 100, charmeleon: 140, charizard: 180, tyrogue: 160, eevee: 160, riolu: 110, lucario: 170 }; // 진화에 필요한 경험치
   // 다음 모습 (배열이면 그중 랜덤)
   const NEXT = {
     cosmog: 'cosmoem', cosmoem: ['solgaleo', 'lunala'],
     charmander: 'charmeleon', charmeleon: 'charizard', charizard: ['megax', 'megay'],
     tyrogue: ['hitmonlee', 'hitmonchan', 'hitmontop'],
     eevee: ['vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
+    riolu: 'lucario', lucario: 'megalucario',
   };
   const LINES = {
     cosmog: ['cosmog', 'cosmoem', 'solgaleo', 'lunala'],
     charmander: ['charmander', 'charmeleon', 'charizard', 'megax', 'megay'],
     tyrogue: ['tyrogue', 'hitmonlee', 'hitmonchan', 'hitmontop'],
     eevee: ['eevee', 'vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
+    riolu: ['riolu', 'lucario', 'megalucario'],
     legend: LEGENDS,
   };
   // (도감에서는 쓰지 않아요)
-  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
-  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', legend: '⭐' };
+  const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', riolu: '👊 리오르 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
+  const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', riolu: '👊', legend: '⭐' };
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
   const randomLine = () => {
     if (Math.random() < LEGEND_CHANCE) return 'legend';
     const k = Object.keys(LINES).filter((l) => l !== 'legend');
     return k[Math.floor(Math.random() * k.length)];
   };
-  const FINALS = Object.values(NEXT).filter(Array.isArray).flat();
-  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo',
+  const FINALS = Object.values(LINES).flat().filter((k) => !NEED[k] && !LEGENDS.includes(k));
+  const BG = { solgaleo: 'sun', lunala: 'moon', megax: 'bluefire', megay: 'fire', tyrogue: 'dojo', hitmonlee: 'dojo', hitmonchan: 'dojo', hitmontop: 'dojo', riolu: 'dojo', lucario: 'dojo', megalucario: 'aura',
     vaporeon: 'water', jolteon: 'spark', flareon: 'fire', espeon: 'sun', umbreon: 'moon', leafeon: 'forest', glaceon: 'ice', sylveon: 'fairy',
     kyogre: 'water', groudon: 'fire', rayquaza: 'moon', lugia: 'water', hooh: 'sun', latias: 'fairy', latios: 'water',
     mew: 'fairy', mewtwo: 'moon', raikou: 'spark', entei: 'fire', suicune: 'ice', articuno: 'ice', zapdos: 'spark', moltres: 'fire' };
@@ -973,6 +1015,7 @@
     tyrogue: '배루—!', hitmonlee: '시라—!', hitmonchan: '홍수—!', hitmontop: '카포—!',
     eevee: '이브이~!', vaporeon: '샤미—!', jolteon: '쥬피—!', flareon: '부스—!', espeon: '에브—!',
     umbreon: '블래—!', leafeon: '리피—!', glaceon: '글레—!', sylveon: '님피~♡',
+    riolu: '리오—!', lucario: '루카—!', megalucario: '루카리오—!!',
   };
   for (const k of LEGENDS) CRY[k] = NAMES[k].slice(0, 2) + '—!!';
   CRY.mew = '뮤~♪';
@@ -984,12 +1027,13 @@
     vaporeon: '💧 물의 돌이 빛난다…!', jolteon: '⚡ 천둥의 돌이 빛난다…!', flareon: '🔥 불꽃의 돌이 빛난다…!',
     espeon: '☀️ 햇살 아래 우정이 빛난다…!', umbreon: '🌙 달빛 아래 우정이 빛난다…!',
     leafeon: '🌿 이끼 바위의 힘이 감싼다…!', glaceon: '❄️ 얼음 바위의 힘이 감싼다…!', sylveon: '🎀 요정의 힘이 반짝인다…!',
+    megalucario: '🔵 파동의 힘이 넘쳐흐른다…!',
   };
   const ICON = { solgaleo: '☀️', lunala: '🌙', megax: '💙', megay: '🔥', hitmonlee: '🦵', hitmonchan: '🥊', hitmontop: '🌀',
     vaporeon: '💧', jolteon: '⚡', flareon: '🔥', espeon: '☀️', umbreon: '🌙', leafeon: '🌿', glaceon: '❄️', sylveon: '🎀',
     kyogre: '🌊', groudon: '🌋', rayquaza: '🐉', lugia: '🌀', hooh: '🌈', latias: '❤️', latios: '💙', mew: '💗', mewtwo: '🔮',
-    raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥' };
-  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', legend: '🍎' })[S.line];
+    raikou: '⚡', entei: '🔥', suicune: '💧', articuno: '❄️', zapdos: '⚡', moltres: '🔥', megalucario: '🔵' };
+  const food = () => ({ cosmog: '🍬', charmander: '🍖', tyrogue: '🍙', eevee: '🍪', riolu: '🍗', legend: '🍎' })[S.line];
   // 받침에 따라 조사 고르기: josa('코스모움', '은', '는') → '코스모움은'
   function josa(word, withB, noB) {
     const c = word.charCodeAt(word.length - 1);
@@ -1002,7 +1046,7 @@
     leafeon: '리프블레이드', glaceon: '눈보라', sylveon: '문포스',
     kyogre: '근원의파동', groudon: '단애의칼', rayquaza: '화룡점정', lugia: '에어로블라스트', hooh: '성스러운불꽃',
     latias: '미스트볼', latios: '라스터퍼지', mew: '사이코키네시스', mewtwo: '사이코브레이크', raikou: '방전',
-    entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트' };
+    entei: '분화', suicune: '하이드로펌프', articuno: '냉동빔', zapdos: '번개', moltres: '오버히트', megalucario: '파동탄' };
 
   // 이로치(색이 다른 포켓몬) 색 바꾸기: 원래 색 → 이로치 색
   const SHINY = {
@@ -1028,6 +1072,9 @@
     leafeon: { '#7bbf4a': '#d8a040', '#f2e2b0': '#fff6d8', '#e2cf96': '#f2deb0' },
     glaceon: { '#a6e2ec': '#c8d8f8', '#3aa8c0': '#6a7ad8' },
     sylveon: { '#f59ac0': '#7ab8f0', '#6ab8e8': '#f59ac0' },
+    riolu: { '#4a90c8': '#e8c040', '#6aa8d8': '#f2d878' },
+    lucario: { '#3a7ac8': '#e8c040', '#5a98d8': '#f2d878', '#f2d670': '#7ac8e8' },
+    megalucario: { '#3a7ac8': '#e8c040', '#5a98d8': '#f2d878', '#f6d23a': '#7ac8e8' },
     kyogre: { '#3a6fd8': '#d84aa8', '#e8483a': '#f6d23a' },
     groudon: { '#d8403a': '#d8b040', '#3a3a42': '#4a6a8a' },
     rayquaza: { '#3a9a5a': '#3b3f4e', '#f6d23a': '#ffe066' },
@@ -1323,7 +1370,7 @@
         if (onCool(id, 1500)) return;
         S.warmth = Math.min(100, S.warmth + 6);
         fx('🎵', 2); tune([523, 659, 784]);
-        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋', eevee: '알 사이로 보송보송한 털이 보여요 🦊', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟' }[S.line]);
+        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋', eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟' }[S.line]);
         break;
       case 'pat':
         if (onCool(id, 1200)) return;
@@ -1555,6 +1602,7 @@
       hitmonlee: '배루키는 발차기 수련 끝에 <b>시라소몬</b>으로 진화했어요.',
       hitmonchan: '배루키는 펀치 수련 끝에 <b>홍수몬</b>으로 진화했어요.',
       hitmontop: '배루키는 회전 수련 끝에 <b>카포에라</b>로 진화했어요.',
+      megalucario: '루카리오가 메가스톤의 힘으로 <b>메가루카리오</b>로 메가진화했어요.',
       vaporeon: '이브이는 물의 돌의 힘으로 <b>샤미드</b>로 진화했어요.',
       jolteon: '이브이는 천둥의 돌의 힘으로 <b>쥬피썬더</b>로 진화했어요.',
       flareon: '이브이는 불꽃의 돌의 힘으로 <b>부스터</b>로 진화했어요.',
