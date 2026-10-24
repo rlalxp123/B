@@ -32,9 +32,11 @@
   .stats span { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 14px; font-variant-numeric: tabular-nums; }
   #wrap { position: relative; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: #3a3029; touch-action: none; }
   canvas { display: block; }
+  [hidden] { display: none !important; }
+  #mainBtn { width: 100%; font-size: 22px; padding-block: 18px; background: var(--psy); color: #fff; }
   #overlay {
-    position: absolute; inset: 0; display: none;
-    align-items: center; justify-content: center; text-align: center;
+    position: absolute; inset: 0; display: none; overflow-y: auto;
+    align-items: safe center; justify-content: center; text-align: center;
     background: rgba(243, 238, 250, 0.93); padding: 16px;
   }
   #overlay.show { display: flex; }
@@ -96,7 +98,9 @@
     </div>
   </div>
 
-  <div class="controls">
+  <button id="mainBtn">▶ 시작하기</button>
+
+  <div class="controls" id="controls" hidden>
     <div class="dpad" id="dpad">
       <button class="up" data-dir="up" aria-label="위">▲</button>
       <button class="left" data-dir="left" aria-label="왼쪽">◀</button>
@@ -242,7 +246,20 @@
 
   function makeEnemy(type, x, y) {
     const e = { type, x, y, rx: x, ry: y, px: x, py: y, t: Math.random() * 0.5, stun: 0, flash: 0, face: -1, hp: FOES[type].hp };
-    if (type === 'onix') e.body = [0, 1, 2, 3].map(() => ({ x, y, rx: x, ry: y }));
+    if (type === 'onix') {
+      // lay the body out behind the head along open passages
+      e.body = [];
+      let cx = x, cy = y;
+      const used = new Set([y * G.cols + x]);
+      for (let i = 0; i < 4; i++) {
+        const next = Object.values(DIRS)
+          .filter(([dx, dy, w]) => G.maze && !G.maze[cy][cx][w] && !used.has((cy + dy) * G.cols + cx + dx))
+          .map(([dx, dy]) => [cx + dx, cy + dy]);
+        if (next.length) { [cx, cy] = next[rand(next.length)]; used.add(cy * G.cols + cx); }
+        e.body.push({ x: cx, y: cy, rx: cx, ry: cy });
+      }
+      e.px = e.body[0].x; e.py = e.body[0].y;
+    }
     return e;
   }
 
@@ -485,8 +502,7 @@
       <p>레벨 ${G.level} 클리어<br>
       ⏱ ${G.elapsed.toFixed(1)}초 · 👣 ${G.steps}걸음 · ❤️ ${G.hp}<br>
       🔮 ${G.got}/${G.total} · 🪨 ${G.broken}개 부숨 · 💥 적 ${G.defeated}마리</p>
-      <button id="nextBtn">다음 레벨 ▶</button>
-    `, () => $('nextBtn').onclick = () => { G.level++; newLevel(); }), 700);
+    `, '다음 레벨 ▶', () => { G.level++; newLevel(); }), 700);
   }
 
   function gameOver(F) {
@@ -496,8 +512,7 @@
     setTimeout(() => showOverlay(`
       <h2>😵 뮤츠가 지쳤어요</h2>
       <p>${F.name}에게 당했어요.<br>적은 🌀 기술로 쓰러뜨리거나 다른 길로 피해 가요.</p>
-      <button id="retryBtn">레벨 ${G.level} 다시 도전</button>
-    `, () => $('retryBtn').onclick = newLevel), 600);
+    `, `🔄 레벨 ${G.level} 다시 도전`, newLevel), 600);
   }
 
   function buzz(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
@@ -529,8 +544,7 @@
     }
     if ((e.key === 'Enter' || e.key === ' ') && G.state !== 'play') {
       e.preventDefault();
-      const b = document.querySelector('#overlay button');
-      if (b) b.click();
+      if (!$('mainBtn').hidden) $('mainBtn').click();
     }
   });
 
@@ -581,12 +595,22 @@
   $('newBtn').onclick = () => { if (G.state !== 'menu') newLevel(); };
 
   // ---------- overlay / hud ----------
-  function showOverlay(html, bind) {
+  // the big button under the board starts, continues or retries the game
+  let mainAction = null;
+  function showOverlay(html, label, action) {
     $('card').innerHTML = html;
     $('overlay').classList.add('show');
-    if (bind) bind();
+    $('mainBtn').textContent = label;
+    mainAction = action;
+    $('mainBtn').hidden = false;
+    $('controls').hidden = true;
   }
-  function hideOverlay() { $('overlay').classList.remove('show'); }
+  function hideOverlay() {
+    $('overlay').classList.remove('show');
+    $('mainBtn').hidden = true;
+    $('controls').hidden = false;
+  }
+  $('mainBtn').onclick = () => { if (mainAction) mainAction(); };
 
   function updateHud() {
     $('lv').textContent = G.level;
@@ -602,7 +626,7 @@
     G.state = 'menu';
     if (!G.maze) {
       G.maze = makeMaze(7, 7); G.player = newPlayer(); G.home = { x: 6, y: 6 };
-      G.enemies = [makeEnemy('geodude', 3, 5), makeEnemy('golem', 5, 2)];
+      G.enemies = [makeEnemy('geodude', 3, 5), makeEnemy('golem', 5, 2), makeEnemy('onix', 2, 3)];
     }
     showOverlay(`
       <h2>🌀 뮤츠 동굴찾아가기</h2>
@@ -616,8 +640,8 @@
         <span>✨ 아르세우스: 쫓아와요 · 기술로 잠깐 멈춰요</span>
       </div>
       ${G.best ? `<p>최고 기록: 레벨 ${G.best}</p>` : ''}
-      <button id="startBtn">시작하기</button>
-    `, () => $('startBtn').onclick = () => { G.level = 1; newLevel(); });
+      <p>아래 <b>▶ 시작하기</b> 버튼을 눌러요!</p>
+    `, '▶ 시작하기', () => { G.level = 1; newLevel(); });
     resize();
     updateHud();
   }
@@ -1254,9 +1278,14 @@
       ctx.restore();
     };
     if (e.type === 'onix') {
-      for (let i = e.body.length - 1; i >= 0; i--) {
-        const b = e.body[i];
-        drawAt(b.rx, b.ry, () => drawOnixSeg(s, s * (0.27 - i * 0.04), i * 2.3 + 1, K));
+      // one chain from tail to head: segments plus linking stones between them
+      const chain = [e, ...e.body];
+      // segments overlap so the body reads as one rocky chain
+      const size = (i) => s * (0.37 - i * 0.028);
+      for (let i = chain.length - 1; i >= 1; i--) {
+        const a = chain[i], b = chain[i - 1];
+        drawAt(a.rx, a.ry, () => { ctx.translate(0, -s * 0.04); drawOnixSeg(s, size(i), i * 2.3 + 1, K); });
+        drawAt((a.rx + b.rx) / 2, (a.ry + b.ry) / 2, () => { ctx.translate(0, -s * 0.04); drawOnixSeg(s, size(i) * 0.95 + s * 0.02, i * 1.7, K); });
       }
       drawAt(e.rx, e.ry, () => { ctx.translate(0, -s * 0.04); drawOnixHead(s, K); });
     } else {
