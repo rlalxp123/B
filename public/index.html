@@ -1016,6 +1016,10 @@
   // (도감에서는 쓰지 않아요)
   const LINE_NAMES = { cosmog: '🌌 코스모그 계열', charmander: '🔥 파이리 계열', tyrogue: '🥋 배루키 계열', eevee: '🦊 이브이 계열', riolu: '👊 리오르 계열', legend: '❓ ???' }; // 도감에서는 정체를 숨겨요
   const LINE_ICON = { cosmog: '🌌', charmander: '🔥', tyrogue: '🥋', eevee: '🦊', riolu: '👊', legend: '⭐' };
+  const EGG_HINT = {
+    cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋',
+    eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟',
+  };
   const LEGEND_CHANCE = 0.01; // 전설의 포켓몬이 나올 확률 (1%)
   const randomLine = () => {
     if (Math.random() < LEGEND_CHANCE) return 'legend';
@@ -1391,7 +1395,7 @@
         if (onCool(id, 1500)) return;
         S.warmth = Math.min(100, S.warmth + 6);
         fx('🎵', 2); tune([523, 659, 784]);
-        say({ cosmog: '알 속에서 별빛이 반짝여요 ✨', charmander: '알 속에서 불꽃이 일렁여요 🔥', tyrogue: '알 속에서 쿵쿵 발차기 소리가 나요 🥋', eevee: '알 사이로 보송보송한 털이 보여요 🦊', riolu: '알 속에서 파동이 느껴져요 🔵', legend: '알이 엄청난 힘으로 떨리고 있어요…! 🌟' }[S.line]);
+        say(['♪ 랄라~ 알이 좋아하는 것 같아요', '♪ 알이 살짝 따뜻해졌어요', '♪ 알이 콩닥콩닥 움직여요'][Math.floor(Math.random() * 3)]);
         break;
       case 'pat':
         if (onCool(id, 1200)) return;
@@ -1536,6 +1540,8 @@
   async function hatch() {
     busy = true; render();
     $('bubble').classList.remove('show');
+    // 깨어나기 직전에 알 속 친구의 힌트를 알려줘요
+    await story(EGG_HINT[S.line], 2000);
     await story('어라…? 알의 상태가…!', 1600);
     petInner.classList.add('shake');
     tune([440, 494, 523, 587], 0.2);
